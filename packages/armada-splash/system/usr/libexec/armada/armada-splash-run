@@ -1,19 +1,20 @@
 #!/usr/bin/bash
 # CLIENTCMD wrapper: run Steam behind the boot-gap splash, forward updater
-# progress, and surface launch failures.
+# progress, and switch to Desktop Mode on launch failures.
 set -u
 
 # shellcheck source=/dev/null
 [[ -r /etc/armada/splash.conf ]] && source /etc/armada/splash.conf
 
 MODE="${ARMADA_SPLASH_MODE:-x11}"              # x11 | off
+[[ -e /etc/armada/splash-disabled ]] && MODE=off
 DIR="${ARMADA_SPLASH_DIR:-/usr/share/armada/splash}"
 # Unset = X display size; a forced portrait size gets fit-scaled/pillarboxed.
 W="${ARMADA_SPLASH_W:-}"
 H="${ARMADA_SPLASH_H:-}"
 CEF_PORT="${ARMADA_SPLASH_CEF_PORT:-8080}"
 SLOW_AFTER="${ARMADA_SPLASH_SLOW_AFTER:-25}"   # secs -> "still starting" message
-ERROR_HOLD="${ARMADA_SPLASH_ERROR_HOLD:-45}"   # secs to show a launch failure
+ERROR_HOLD="${ARMADA_SPLASH_ERROR_HOLD:-10}"   # secs to show a launch failure
 SPLASH_BIN="${ARMADA_SPLASH_BIN:-/usr/libexec/armada/armada-splash}"
 ASSET="${ARMADA_SPLASH_ASSET:-${DIR}/splash.asp}"
 FONT="${ARMADA_SPLASH_FONT:-${DIR}/font.ttf}"
@@ -54,8 +55,8 @@ fi
 cef_stale=0
 cef_up && cef_stale=1
 
-# Child, not exec: a Steam crash must not tear down gamescope (and the
-# splash) before the error can be shown.
+# Child, not exec: select the recovery session before a Steam crash can
+# tear down gamescope and cause SDDM to autologin to Gaming Mode again.
 "$@" >"$steamlog" 2>&1 &
 steam_pid=$!
 
@@ -107,11 +108,13 @@ if (( code == 42 )); then
 fi
 
 # The UI came up (or Steam left cleanly): the session's to handle, not a
-# launch failure. The red screen is for nonzero pre-UI exits only.
+# launch failure. Desktop recovery is for nonzero pre-UI exits only.
 if (( steam_up )) || (( code == 0 )); then exit "$code"; fi
 
-tail_line="$(grep -aiE 'error|fatal|segfault|assert|abort|not found|failed' "$steamlog" | tail -1)"
+tail_line="$(grep -aiE 'error|fatal|segfault|assert|abort|not found|failed' "$steamlog" 2>/dev/null | tail -1)"
 [[ -z "$tail_line" ]] && tail_line="$(tail -1 "$steamlog" 2>/dev/null)"
+
+# Best effort: a full disk must not prevent the desktop switch.
 {
     echo "armada steam launch failure @ $stamp"
     echo "exit code: $code"
@@ -120,13 +123,13 @@ tail_line="$(grep -aiE 'error|fatal|segfault|assert|abort|not found|failed' "$st
     tail -40 "$steamlog" 2>/dev/null
 } > "$faillog"
 
-# A '!' line renders red; raw and verbatim, full text in $faillog.
+# A '!' line renders red; keep the underlying error visible before recovery.
 msg="!Steam launch failed (exit ${code})"
 [[ -n "$tail_line" ]] && msg="${msg}"$'\n'"!${tail_line}"
-say "$msg"
+say "${msg}"$'\n'"Starting Desktop Mode in ${ERROR_HOLD} seconds"
 
-# A fresh renderer for the error: the startup one may have been displaced
-# already (or be about to process a displacement), ending the hold early.
+# The startup renderer may already have been displaced by a Steam window.
+# Start a fresh one so the error gets its own bounded display time.
 if [[ -n "$splash_pid" ]]; then
     kill "$splash_pid" 2>/dev/null
     wait "$splash_pid" 2>/dev/null
@@ -137,12 +140,22 @@ if [[ "$MODE" == "x11" && -n "${DISPLAY:-}" && -x "$SPLASH_BIN" ]]; then
     splash_pid=$!
 fi
 
-# Hold the error long enough to read, then return control to the session;
-# an unbounded hold wedges the boot with no input path to escape it.
+# Skip the delay without a renderer, and recover early if it exits itself.
 if [[ -n "$splash_pid" ]]; then
     ( sleep "$ERROR_HOLD"; kill "$splash_pid" 2>/dev/null ) &
     killer=$!
     wait "$splash_pid"
     kill "$killer" 2>/dev/null
+    wait "$killer" 2>/dev/null
+fi
+
+say "Steam could not start. Starting Desktop Mode"
+
+# Use the same privileged helper as Steam's Switch to Desktop action. It
+# selects Plasma before restarting SDDM, giving the user access to a terminal
+# even when Steam cannot start (for example, with less than 250 MB free).
+# -n prevents a password prompt if the image's sudo rule is unavailable.
+if ! sudo -n /usr/libexec/armada/session-control switch-desktop; then
+    echo "armada-splash-run: failed to switch to Desktop Mode after Steam exited with $code" >&2
 fi
 exit "$code"
