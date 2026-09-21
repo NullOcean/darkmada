@@ -138,7 +138,7 @@ fi
 # A '!' line renders red; keep the underlying error visible before recovery.
 msg="!Steam launch failed (exit ${code})"
 [[ -n "$tail_line" ]] && msg="${msg}"$'\n'"!${tail_line}"
-say "${msg}"$'\n'"Starting Desktop Mode in ${ERROR_HOLD} seconds"
+say "${msg}"$'\n'"Rebooting to Desktop Mode in ${ERROR_HOLD} seconds"
 
 # The startup renderer may already have been displaced by a Steam window.
 # Start a fresh one so the error gets its own bounded display time.
