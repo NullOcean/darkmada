@@ -141,8 +141,8 @@ sys.exit(int(sys.argv[2]))
         return self.events.read_text().splitlines()
 
     def assert_recovery(self, events):
-        self.assertEqual(events.count("sudo -n /usr/libexec/armada/session-control switch-desktop"), 1)
-        self.assertEqual(self.status.read_text().strip(), "Steam could not start. Starting Desktop Mode")
+        self.assertEqual(events.count("sudo -n /usr/libexec/armada/session-control recover-desktop"), 1)
+        self.assertEqual(self.status.read_text().strip(), "Steam could not start. Restarting in Desktop Mode")
 
     def test_low_space_opens_desktop_with_splash_off(self):
         started = time.monotonic()
@@ -165,7 +165,7 @@ sys.exit(int(sys.argv[2]))
         self.assertEqual(self.run_steam("splash"), [
             "splash started", "splash stopped",
             "error splash started", "splash stopped",
-            "sudo -n /usr/libexec/armada/session-control switch-desktop",
+            "sudo -n /usr/libexec/armada/session-control recover-desktop",
         ])
         self.assertEqual((self.work / "error-status").read_text().splitlines(), [
             "!Steam launch failed (exit 1)", f"!{LOW_SPACE}",
@@ -190,12 +190,12 @@ sys.exit(int(sys.argv[2]))
         self.logs.rmdir()
         self.logs.write_text("not a directory")
         self.status.mkdir()
-        self.assertEqual(self.run_steam(), ["sudo -n /usr/libexec/armada/session-control switch-desktop"])
+        self.assertEqual(self.run_steam(), ["sudo -n /usr/libexec/armada/session-control recover-desktop"])
 
     def test_failed_switch_returns_original_steam_error(self):
         self.env["TEST_SWITCH_CODE"] = "1"
         self.assert_recovery(self.run_steam())
-        self.assertIn("failed to switch to Desktop Mode", (self.work / "output").read_text())
+        self.assertIn("failed to restart in Desktop Mode", (self.work / "output").read_text())
 
     def test_clean_exit_does_not_switch(self):
         self.assertEqual(self.run_steam("clean", 0), [])

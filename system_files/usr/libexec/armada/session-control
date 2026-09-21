@@ -107,35 +107,6 @@ logout_plasma() {
         "${qdbus}" org.kde.Shutdown /Shutdown org.kde.Shutdown.logout
 }
 
-stop_user_graphical_session() {
-    local user=armada
-    local uid=1000
-    local bus="/run/user/${uid}/bus"
-
-    [[ -S "${bus}" ]] || return 0
-
-    sudo -Eu "${user}" env \
-        XDG_RUNTIME_DIR="/run/user/${uid}" \
-        DBUS_SESSION_BUS_ADDRESS="unix:path=${bus}" \
-        systemctl --user stop graphical-session.target
-}
-
-desktop_handoff() {
-    # This runs in a system service, not gamescope's user-service cgroup.
-    # Stopping graphical-session.target otherwise kills the process before it
-    # can restart SDDM, leaving Plasma to inherit Gaming Mode's stale target.
-    stop_user_graphical_session
-    systemctl restart sddm.service
-}
-
-schedule_desktop_handoff() {
-    systemd-run \
-        --quiet \
-        --collect \
-        --unit=armada-desktop-handoff \
-        /usr/libexec/armada/session-control desktop-handoff
-}
-
 desktop_session=armada-plasma.desktop
 desktop_mode=desktop
 
@@ -145,15 +116,31 @@ if [[ $(cat /etc/armada/desktop-session 2>/dev/null) == mobile ]]; then
 fi
 
 case "${1:-}" in
-    desktop-handoff)
-        desktop_handoff
-        exit 0
-        ;;
     switch-desktop)
         initialize_plasma_configs
         activate_plasma_config "${desktop_mode}"
         session=$desktop_session
-        desktop_handoff=1
+        ;;
+    recover-desktop)
+        initialize_plasma_configs
+        activate_plasma_config "${desktop_mode}"
+        # /usr is replaced by the immutable image on reboot, so leave the
+        # one-boot choice where systemd will still see it. The normal boot
+        # default service consumes this drop-in and removes it after selecting
+        # Desktop Mode; later boots return to Gaming Mode.
+        install -d -o root -g root -m 0755 \
+            /etc/systemd/system/armada-session-default.service.d
+        printf '%s\n' \
+            '[Service]' \
+            'ExecStart=' \
+            'ExecStart=/usr/libexec/armada/session-control default-desktop' \
+            'ExecStartPost=-/usr/bin/rm -f /etc/systemd/system/armada-session-default.service.d/recover-desktop.conf' \
+            > /etc/systemd/system/armada-session-default.service.d/recover-desktop.conf
+        chmod 0644 /etc/systemd/system/armada-session-default.service.d/recover-desktop.conf
+        rm -f /var/lib/armada/boot-desktop-once
+        systemctl daemon-reload
+        session=$desktop_session
+        recover_by_reboot=1
         ;;
     switch-gamemode) session=gamescope-session-steam.desktop ;;
     default-gamemode) session=gamescope-session-steam.desktop; default_only=1 ;;
@@ -163,7 +150,7 @@ case "${1:-}" in
         session=$desktop_session
         default_only=1
         ;;
-    *) echo "usage: $0 {switch-desktop|switch-gamemode|default-gamemode|default-desktop}" >&2; exit 1 ;;
+    *) echo "usage: $0 {switch-desktop|recover-desktop|switch-gamemode|default-gamemode|default-desktop}" >&2; exit 1 ;;
 esac
 
 printf '[Autologin]\nSession=%s\n' "${session}" > /etc/sddm.conf.d/zz-steamos-autologin.conf
@@ -173,8 +160,10 @@ if [[ "${default_only:-0}" == "1" ]]; then
     exit 0
 fi
 
-if [[ "${desktop_handoff:-0}" == "1" ]]; then
-    schedule_desktop_handoff || systemctl --no-block restart sddm.service
+if [[ "${recover_by_reboot:-0}" == "1" ]]; then
+    # A fresh boot gives KWin exclusive, clean ownership of the display.
+    # On the Odin, a live Gamescope-to-KWin handoff can lock the DPU/GPU.
+    systemctl --no-block reboot
     exit 0
 fi
 

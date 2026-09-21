@@ -161,13 +161,12 @@ if [[ -n "$splash_pid" ]]; then
     wait "$killer" 2>/dev/null
 fi
 
-say "Steam could not start. Starting Desktop Mode"
+say "Steam could not start. Restarting in Desktop Mode"
 
-# Use the same privileged helper as Steam's Switch to Desktop action. It
-# selects Plasma before restarting SDDM, giving the user access to a terminal
-# even when Steam cannot start (for example, with less than 250 MB free).
-# -n prevents a password prompt if the image's sudo rule is unavailable.
-if ! sudo -n /usr/libexec/armada/session-control switch-desktop; then
-    echo "armada-splash-run: failed to switch to Desktop Mode after Steam exited with $code" >&2
+# Gamescope already owns the Odin's display at this point. Starting KWin via
+# SDDM in the same boot can wedge the DPU/Adreno driver, so select Plasma for
+# the next login and reboot instead of attempting a live compositor handoff.
+if ! sudo -n /usr/libexec/armada/session-control recover-desktop; then
+    echo "armada-splash-run: failed to restart in Desktop Mode after Steam exited with $code" >&2
 fi
 exit "$code"
