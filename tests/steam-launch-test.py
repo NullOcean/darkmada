@@ -204,6 +204,12 @@ sys.exit(int(sys.argv[2]))
         self.env["ARMADA_STEAM_MIN_FREE_KIB"] = "invalid"
         self.assertEqual(self.run_steam("clean", 0), [])
 
+    def test_leading_zero_space_values_are_decimal(self):
+        self.env["ARMADA_STEAM_MIN_FREE_KIB"] = "010"
+        self.env["TEST_FREE_KIB"] = "009"
+        self.assert_recovery(self.run_steam(code=254))
+        self.assertFalse((self.work / "steam-started").exists())
+
     def test_update_restart_does_not_switch(self):
         self.assertEqual(self.run_steam("update", 42), [])
         self.assertEqual(self.status.read_text().strip(), "Restarting Steam")
