@@ -41,7 +41,9 @@ jobs:
         run: |
           set -euo pipefail
           owner="${{ github.repository_owner }}"
-          repo="ghcr.io/${owner,,}/armada/pkg"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          fork_repo="ghcr.io/${owner,,}/${repo_name,,}/pkg"
+          upstream_repo="ghcr.io/armada-os/armada/pkg"
           echo "${GH_TOKEN}" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
 
           matrix='[]'
@@ -52,16 +54,22 @@ jobs:
             pkg="$(basename "${dir}")"
             [ -f "${dir}/build.sh" ] || continue
             hash="$(packages/package-hash.sh "${pkg}")"
-            ref="${repo}/${pkg}:${hash}"
+            fork_ref="${fork_repo}/${pkg}:${hash}"
+            upstream_ref="${upstream_repo}/${pkg}:${hash}"
 
             case "${pkg}" in
               mesa-android|mesa-x86) runner=ubuntu-24.04 ;;
               *)                     runner=ubuntu-24.04-arm ;;
             esac
 
-            if skopeo inspect --raw "docker://${ref}" >/dev/null 2>&1; then
-              echo "::notice::${pkg} already built (${hash})"
+            if skopeo inspect --raw "docker://${fork_ref}" >/dev/null 2>&1; then
+              ref="${fork_ref}"
+              echo "::notice::${pkg} already built by fork (${hash})"
+            elif skopeo inspect --raw "docker://${upstream_ref}" >/dev/null 2>&1; then
+              ref="${upstream_ref}"
+              echo "::notice::${pkg} reusing upstream build (${hash})"
             else
+              ref="${fork_ref}"
               echo "::notice::${pkg} needs building (${hash})"
               matrix="$(jq -c --arg p "${pkg}" --arg r "${runner}" --arg h "${hash}" \
                 '. + [{package:$p, runner:$r, hash:$h}]' <<<"${matrix}")"
@@ -117,7 +125,8 @@ jobs:
           echo "BUILDER_IMAGE=${BUILDER_IMAGE}" >> "${GITHUB_ENV}"
           echo "GUEST_BUILDER_IMAGE=${GUEST_BUILDER_IMAGE}" >> "${GITHUB_ENV}"
           owner="${{ github.repository_owner }}"
-          echo "CACHE_REPO=ghcr.io/${owner,,}/armada/buildcache/${{ matrix.package }}" >> "${GITHUB_ENV}"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          echo "CACHE_REPO=ghcr.io/${owner,,}/${repo_name,,}/buildcache/${{ matrix.package }}" >> "${GITHUB_ENV}"
 
       - name: Locate buildah cache mounts
         id: cachedir
@@ -145,7 +154,8 @@ jobs:
         run: |
           set -euxo pipefail
           owner="${{ github.repository_owner }}"
-          REF="ghcr.io/${owner,,}/armada/pkg/${PACKAGE}:${HASH}"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          REF="ghcr.io/${owner,,}/${repo_name,,}/pkg/${PACKAGE}:${HASH}"
 
           buildah build \
             -f packages/Containerfile \
