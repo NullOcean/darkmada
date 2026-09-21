@@ -285,7 +285,9 @@ jobs:
               "${IMAGE_REF}"
           fi
 
-          if [ "${{ github.event.repository.fork }}" != "true" ]; then
+          if [ "${{ github.event.repository.fork }}" = "true" ]; then
+            cosign verify --key system_files/etc/pki/containers/darkmada.pub "${IMAGE_REF}"
+          else
             cosign verify --key system_files/etc/pki/containers/armada.pub "${IMAGE_REF}"
             if [ "${IMAGE_FULL}" = "${ARMADA_LEGACY_IMAGE}" ]; then
               cosign verify --check-claims=false \
@@ -300,6 +302,7 @@ jobs:
           TAGS: ${{ steps.push.outputs.digest }}
           COSIGN_EXPERIMENTAL: false
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
 
       - name: Publish channel tags
         if: env.HAVE_SIGNING_SECRET == 'true'
