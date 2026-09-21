@@ -107,6 +107,35 @@ logout_plasma() {
         "${qdbus}" org.kde.Shutdown /Shutdown org.kde.Shutdown.logout
 }
 
+stop_user_graphical_session() {
+    local user=armada
+    local uid=1000
+    local bus="/run/user/${uid}/bus"
+
+    [[ -S "${bus}" ]] || return 0
+
+    sudo -Eu "${user}" env \
+        XDG_RUNTIME_DIR="/run/user/${uid}" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=${bus}" \
+        systemctl --user stop graphical-session.target
+}
+
+desktop_handoff() {
+    # This runs in a system service, not gamescope's user-service cgroup.
+    # Stopping graphical-session.target otherwise kills the process before it
+    # can restart SDDM, leaving Plasma to inherit Gaming Mode's stale target.
+    stop_user_graphical_session
+    systemctl restart sddm.service
+}
+
+schedule_desktop_handoff() {
+    systemd-run \
+        --quiet \
+        --collect \
+        --unit=armada-desktop-handoff \
+        /usr/libexec/armada/session-control desktop-handoff
+}
+
 desktop_session=armada-plasma.desktop
 desktop_mode=desktop
 
@@ -116,10 +145,15 @@ if [[ $(cat /etc/armada/desktop-session 2>/dev/null) == mobile ]]; then
 fi
 
 case "${1:-}" in
+    desktop-handoff)
+        desktop_handoff
+        exit 0
+        ;;
     switch-desktop)
         initialize_plasma_configs
         activate_plasma_config "${desktop_mode}"
         session=$desktop_session
+        desktop_handoff=1
         ;;
     switch-gamemode) session=gamescope-session-steam.desktop ;;
     default-gamemode) session=gamescope-session-steam.desktop; default_only=1 ;;
@@ -136,6 +170,11 @@ printf '[Autologin]\nSession=%s\n' "${session}" > /etc/sddm.conf.d/zz-steamos-au
 systemctl reset-failed sddm.service 2>/dev/null || true
 
 if [[ "${default_only:-0}" == "1" ]]; then
+    exit 0
+fi
+
+if [[ "${desktop_handoff:-0}" == "1" ]]; then
+    schedule_desktop_handoff || systemctl --no-block restart sddm.service
     exit 0
 fi
 

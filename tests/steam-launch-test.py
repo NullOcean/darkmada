@@ -51,9 +51,12 @@ class SteamLaunchTests(unittest.TestCase):
             "TEST_ERROR_STATUS": str(self.work / "error-status"),
             "TEST_ERROR_DURATION": str(self.work / "error-duration"),
             "TEST_ERROR_SPLASH_EXIT": "0",
+            "TEST_STEAM_STARTED": str(self.work / "steam-started"),
+            "TEST_FREE_KIB": "1000000",
         }
         self.env.pop("ARMADA_SPLASH_ERROR_HOLD", None)
         self.script("sudo", '#!/bin/sh\nprintf "sudo %s\\n" "$*" >> "$TEST_EVENTS"\nexit "$TEST_SWITCH_CODE"\n')
+        self.script("df", '#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted on\\n"\nprintf "testfs 10000000 0 %s 0%% /\\n" "$TEST_FREE_KIB"\n')
         self.script("progress", '#!/bin/sh\nprintf "%s\\n" "$*" > "$ARMADA_SPLASH_STATUS"\n')
         self.script("splash", f"#!{sys.executable}\n" + '''
 import os, signal, time
@@ -85,6 +88,7 @@ while True:
 import os, socket, sys, time
 from pathlib import Path
 mode = sys.argv[1]
+Path(os.environ["TEST_STEAM_STARTED"]).touch()
 if mode == "ready":
     listener = socket.socket()
     listener.bind(("127.0.0.1", int(os.environ["ARMADA_SPLASH_CEF_PORT"])))
@@ -147,6 +151,14 @@ sys.exit(int(sys.argv[2]))
         failure = (self.logs / "last-steam-failure.log").read_text()
         self.assertIn(LOW_SPACE, failure)
         self.assertIn("exit code: 1", failure)
+
+    def test_low_space_is_detected_before_steam_can_fill_the_disk(self):
+        self.env["ARMADA_STEAM_MIN_FREE_KIB"] = "999999999999"
+        self.assert_recovery(self.run_steam(code=254))
+        self.assertFalse((self.work / "steam-started").exists())
+        failure = (self.logs / "last-steam-failure.log").read_text()
+        self.assertIn(LOW_SPACE, failure)
+        self.assertIn("exit code: 254", failure)
 
     def test_error_is_shown_for_ten_seconds_before_switching(self):
         self.env["ARMADA_SPLASH_MODE"] = "x11"
