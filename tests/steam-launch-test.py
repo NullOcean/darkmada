@@ -56,7 +56,7 @@ class SteamLaunchTests(unittest.TestCase):
         }
         self.env.pop("ARMADA_SPLASH_ERROR_HOLD", None)
         self.script("sudo", '#!/bin/sh\nprintf "sudo %s\\n" "$*" >> "$TEST_EVENTS"\nexit "$TEST_SWITCH_CODE"\n')
-        self.script("df", '#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted on\\n"\nprintf "testfs 10000000 0 %s 0%% /\\n" "$TEST_FREE_KIB"\n')
+        self.script("df", '#!/bin/sh\n[ -e "$2" ] || exit 1\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted on\\n"\nprintf "testfs 10000000 0 %s 0%% /\\n" "$TEST_FREE_KIB"\n')
         self.script("progress", '#!/bin/sh\nprintf "%s\\n" "$*" > "$ARMADA_SPLASH_STATUS"\n')
         self.script("splash", f"#!{sys.executable}\n" + '''
 import os, signal, time
@@ -169,7 +169,7 @@ sys.exit(int(sys.argv[2]))
         ])
         self.assertEqual((self.work / "error-status").read_text().splitlines(), [
             "!Steam launch failed (exit 1)", f"!{LOW_SPACE}",
-            "Starting Desktop Mode in 10 seconds",
+            "Rebooting to Desktop Mode in 10 seconds",
         ])
         # Allow for the renderer process starting just after the hold timer.
         self.assertGreaterEqual(float((self.work / "error-duration").read_text()), 9.5)
@@ -198,6 +198,10 @@ sys.exit(int(sys.argv[2]))
         self.assertIn("failed to restart in Desktop Mode", (self.work / "output").read_text())
 
     def test_clean_exit_does_not_switch(self):
+        self.assertEqual(self.run_steam("clean", 0), [])
+
+    def test_invalid_space_threshold_uses_default(self):
+        self.env["ARMADA_STEAM_MIN_FREE_KIB"] = "invalid"
         self.assertEqual(self.run_steam("clean", 0), [])
 
     def test_update_restart_does_not_switch(self):

@@ -16,6 +16,7 @@ CEF_PORT="${ARMADA_SPLASH_CEF_PORT:-8080}"
 SLOW_AFTER="${ARMADA_SPLASH_SLOW_AFTER:-25}"   # secs -> "still starting" message
 ERROR_HOLD="${ARMADA_SPLASH_ERROR_HOLD:-10}"   # secs to show a launch failure
 MIN_FREE_KIB="${ARMADA_STEAM_MIN_FREE_KIB:-256000}" # 250 MiB required by Steam
+[[ "$MIN_FREE_KIB" =~ ^[0-9]+$ ]] || MIN_FREE_KIB=256000
 SPLASH_BIN="${ARMADA_SPLASH_BIN:-/usr/libexec/armada/armada-splash}"
 ASSET="${ARMADA_SPLASH_ASSET:-${DIR}/splash.asp}"
 FONT="${ARMADA_SPLASH_FONT:-${DIR}/font.ttf}"
@@ -52,7 +53,9 @@ if [[ "$MODE" == "x11" && -n "${DISPLAY:-}" && -x "$SPLASH_BIN" ]]; then
     splash_pid=$!
 fi
 
-available_kib="$(df -Pk "$steam_root" 2>/dev/null | awk 'NR == 2 { print $4 }')"
+space_path="$steam_root"
+[[ -e "$space_path" ]] || space_path="$HOME"
+available_kib="$(df -Pk "$space_path" 2>/dev/null | awk 'NR == 2 { print $4 }')"
 if [[ "$available_kib" =~ ^[0-9]+$ ]] && (( available_kib < MIN_FREE_KIB )); then
     # Do not let Steam consume the last space Plasma needs to start. Steam's
     # own low-space check is too late: its updater can leave the filesystem

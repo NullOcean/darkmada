@@ -130,13 +130,16 @@ case "${1:-}" in
         # Desktop Mode; later boots return to Gaming Mode.
         install -d -o root -g root -m 0755 \
             /etc/systemd/system/armada-session-default.service.d
+        recover_override=/etc/systemd/system/armada-session-default.service.d/recover-desktop.conf
+        recover_override_tmp=$(mktemp "${recover_override}.XXXXXX")
         printf '%s\n' \
             '[Service]' \
             'ExecStart=' \
             'ExecStart=/usr/libexec/armada/session-control default-desktop' \
             'ExecStartPost=-/usr/bin/rm -f /etc/systemd/system/armada-session-default.service.d/recover-desktop.conf' \
-            > /etc/systemd/system/armada-session-default.service.d/recover-desktop.conf
-        chmod 0644 /etc/systemd/system/armada-session-default.service.d/recover-desktop.conf
+            > "${recover_override_tmp}"
+        chmod 0644 "${recover_override_tmp}"
+        mv -f "${recover_override_tmp}" "${recover_override}"
         rm -f /var/lib/armada/boot-desktop-once
         systemctl daemon-reload
         session=$desktop_session
