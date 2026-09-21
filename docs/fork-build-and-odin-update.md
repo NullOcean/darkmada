@@ -194,6 +194,10 @@ Do not deploy merely because the mutable tag exists. Confirm that the build
 workflow passed, the signature verifies, and the digest is the build intended
 for the device.
 
+The workstation's current Git branch does not matter during deployment. Git is
+needed to build and publish an image; `bootc switch` downloads the already
+published image from GHCR.
+
 ## First switch from upstream Armada to the fork
 
 ### Bootstrap trust on an existing upstream installation
@@ -273,6 +277,19 @@ df -h / /var
 sudo bootc status
 ```
 
+The first switch should be staged and inspected before rebooting:
+
+```bash
+ssh armada@<odin-ip> 'df -h / /var; sudo bootc status'
+ssh -t armada@<odin-ip> \
+  'sudo bootc switch --enforce-container-sigpolicy \
+   ghcr.io/andrewmccament/darkmada:odin'
+ssh -t armada@<odin-ip> 'sudo bootc status'
+```
+
+The status output should show the fork image as the staged deployment. Reboot
+only after the staged deployment and expected digest are correct.
+
 Then switch the bootc origin to the personal tag:
 
 ```bash
@@ -300,6 +317,12 @@ sudo bootc status
 cat /etc/os-release
 ```
 
+For a bootc deployment, `bootc status` is the authoritative deployment check.
+On some Armada builds, `rpm-ostree status --booted` can emit an assertion such
+as `g_variant_dict_lookup` even though the deployment booted correctly. If that
+happens while `bootc status` shows the expected fork image and rollback image,
+treat it as a status-query compatibility issue and continue using `bootc status`.
+
 Test both Gaming Mode and Desktop Mode before considering the deployment good.
 
 ## Updating later builds
@@ -316,6 +339,39 @@ sudo systemctl reboot
 
 Verify the booted digest after reconnecting. Avoid starting a second update
 while a deployment is already staged.
+
+The SteamOS channel picker translates Preview, Beta, and Stable to the
+`testing`, `beta`, and `stable` tags, but the current updater allowlist only
+recognizes Armada's upstream repositories. A `darkmada:odin` deployment should
+therefore be updated through `bootc upgrade` or an explicit `bootc switch` until
+the fork repository is added to `system_files/usr/lib/armada/update-lib`.
+
+## Troubleshooting Odin network access
+
+SSH problems that produce a timeout or `Host is down` occur before SSH
+authentication. Confirm the Odin is awake, connected to the same non-guest LAN,
+and using the expected address. A phone-hotspot test is useful: if SSH works
+immediately when both devices use the hotspot, the Odin's SSH service is fine
+and the home mesh is the failing path.
+
+On the Odin, a short NetworkManager check is enough to identify repeated Wi-Fi
+link drops:
+
+```bash
+sudo journalctl -b -u NetworkManager --since "1 hour ago" --no-pager | tail -50
+```
+
+Repeated `completed -> disconnected -> scanning -> authenticating` sequences
+indicate Wi-Fi instability. As a temporary diagnostic, disable Wi-Fi power
+saving for the current session:
+
+```bash
+sudo iw dev wlp1s0 set power_save off
+```
+
+The interface name may differ; use `nmcli device status` to find it. This
+setting is temporary and resets after reboot. A missing `firewall-cmd` command
+does not indicate a problem; Armada may not have firewalld installed.
 
 ## Rollback and return to upstream
 
