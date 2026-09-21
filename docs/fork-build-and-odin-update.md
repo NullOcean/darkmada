@@ -196,6 +196,65 @@ for the device.
 
 ## First switch from upstream Armada to the fork
 
+### Bootstrap trust on an existing upstream installation
+
+An Odin currently running upstream Armada does not yet have the fork's public
+key or its GHCR signature-attachment configuration. Install those two public
+trust files before the first signed `bootc switch`; do not disable signature
+verification to work around this bootstrap step.
+
+From the workstation, copy the public key to the device:
+
+```bash
+scp system_files/etc/pki/containers/darkmada.pub \
+  armada@<odin-ip>:/tmp/darkmada.pub
+```
+
+On the Odin, install the key and back up the current policy:
+
+```bash
+sudo install -D -m 0644 /tmp/darkmada.pub \
+  /etc/pki/containers/darkmada.pub
+sudo cp -a /etc/containers/policy.json \
+  /etc/containers/policy.json.before-darkmada
+```
+
+Add the fork image policy. This requires `jq`:
+
+```bash
+command -v jq
+jq '.transports.docker["ghcr.io/andrewmccament/darkmada"] = [{
+  "type":"sigstoreSigned",
+  "keyPaths":["/etc/pki/containers/darkmada.pub"],
+  "signedIdentity":{"type":"matchRepository"}
+}]' /etc/containers/policy.json |
+sudo tee /tmp/policy.json >/dev/null
+sudo install -m 0644 /tmp/policy.json /etc/containers/policy.json
+```
+
+Tell containers/image to look for Cosign signatures in GHCR's signature
+attachments. Preserve the existing file, if present, and append the fork entry:
+
+```bash
+sudo mkdir -p /etc/containers/registries.d
+sudo cp -a /etc/containers/registries.d/ghcr-armada.yaml \
+  /etc/containers/registries.d/ghcr-armada.yaml.backup 2>/dev/null || true
+sudo tee -a /etc/containers/registries.d/ghcr-armada.yaml >/dev/null <<'EOF'
+  ghcr.io/andrewmccament/darkmada:
+    use-sigstore-attachments: true
+EOF
+```
+
+Verify the bootstrap files before switching:
+
+```bash
+sudo test -f /etc/pki/containers/darkmada.pub && echo key-present
+sudo jq '.transports.docker["ghcr.io/andrewmccament/darkmada"]' \
+  /etc/containers/policy.json
+sudo grep -A1 'ghcr.io/andrewmccament/darkmada' \
+  /etc/containers/registries.d/ghcr-armada.yaml
+```
+
 Clean up any temporary files used by an earlier live test first:
 
 ```bash
