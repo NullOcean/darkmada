@@ -162,15 +162,9 @@ such as `odin`. The build workflow maps a manually dispatched non-reserved
 branch directly to a tag of the same name.
 
 ```bash
-<<<<<<< HEAD
-git push -u origin odin
-gh workflow run build.yml --repo andrewmccament/darkmada --ref odin
-gh run list --repo andrewmccament/darkmada \
-=======
 git push -u origin HEAD:odin
 gh workflow run build.yml --repo NullOcean/darkmada --ref odin
 gh run list --repo NullOcean/darkmada \
->>>>>>> a16e528 (prepare GHCR namespace transfer)
   --workflow build.yml --branch odin --event workflow_dispatch --limit 3
 gh run watch <run-id> --repo NullOcean/darkmada --exit-status
 ```
@@ -336,14 +330,8 @@ Test both Gaming Mode and Desktop Mode before considering the deployment good.
 
 ## Updating later builds
 
-<<<<<<< HEAD
-When a new signed image is published to the same `odin` tag, Armada's updater
-can follow that nonstandard tag because the booted origin includes it. For an
-explicit development update:
-=======
 When a new signed image is published to the same `odin` tag, update an Odin
 that is already running `ghcr.io/nullocean/darkmada:odin` with this routine:
->>>>>>> a16e528 (prepare GHCR namespace transfer)
 
 ```bash
 sudo bootc upgrade
