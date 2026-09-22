@@ -1,4 +1,4 @@
-use crate::{config, runtime, LightingBackend, LightingConfig};
+use crate::{config, display_brightness_helper, runtime, LightingBackend, LightingConfig};
 use anyhow::Result;
 use std::path::PathBuf;
 
@@ -37,7 +37,8 @@ impl Controller {
         if config.correction.is_none() {
             config.correction = self.backend.default_correction();
         }
-        self.backend.apply(&config)?;
+        let applied_config: LightingConfig = Self::config_for_apply(&config)?;
+        self.backend.apply(&applied_config)?;
         config::save(&self.config_path, &config)?;
         Ok(config)
     }
@@ -54,7 +55,18 @@ impl Controller {
         }
 
         let config: LightingConfig = self.get()?;
-        self.backend.apply(&config)?;
+        let applied_config: LightingConfig = Self::config_for_apply(&config)?;
+        self.backend.apply(&applied_config)?;
         Ok(None)
+    }
+
+    fn config_for_apply(config: &LightingConfig) -> Result<LightingConfig> {
+        let mut applied_config: LightingConfig = config.clone();
+        if config.enabled && config.link_brightness {
+            let screen_percent: u8 = display_brightness_helper::screen_brightness_percent()?;
+            applied_config.brightness =
+                display_brightness_helper::linked_brightness(screen_percent, config.max_brightness);
+        }
+        Ok(applied_config)
     }
 }

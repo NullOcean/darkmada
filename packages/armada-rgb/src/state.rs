@@ -5,11 +5,15 @@ use serde::{Deserialize, Serialize};
 const CONFIG_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct LightingConfig {
     pub version: u32,
     pub enabled: bool,
+    #[serde(default)]
+    pub link_brightness: bool,
     pub brightness: u8,
+    #[serde(default = "default_max_brightness")]
+    pub max_brightness: u8,
     pub color: String,
     #[serde(default = "default_saturation")]
     pub saturation: u8,
@@ -21,12 +25,18 @@ fn default_saturation() -> u8 {
     100
 }
 
+fn default_max_brightness() -> u8 {
+    25
+}
+
 impl Default for LightingConfig {
     fn default() -> Self {
         Self {
             version: CONFIG_VERSION,
             enabled: false,
             brightness: 25,
+            link_brightness: false,
+            max_brightness: default_max_brightness(),
             color: "FFFFFF".into(),
             saturation: default_saturation(),
             correction: None,
@@ -44,6 +54,9 @@ impl LightingConfig {
         }
         if self.saturation > 100 {
             bail!("saturation must be between 0 and 100");
+        }
+        if self.max_brightness > 100 {
+            bail!("maxBrightness must be between 0 and 100");
         }
         if self.color.len() != 6 || !self.color.bytes().all(|c| c.is_ascii_hexdigit()) {
             bail!("color must be six hexadecimal RGB digits");
@@ -104,6 +117,12 @@ mod tests {
             ..LightingConfig::default()
         };
         assert!(saturation.validate().is_err());
+
+        let max_brightness: LightingConfig = LightingConfig {
+            max_brightness: 101,
+            ..LightingConfig::default()
+        };
+        assert!(max_brightness.validate().is_err());
 
         let version: LightingConfig = LightingConfig {
             version: 2,
