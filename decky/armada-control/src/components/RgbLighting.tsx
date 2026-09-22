@@ -2,7 +2,6 @@ import { toaster } from "@decky/api";
 import { PanelSection } from "@decky/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getRgb, setRgb } from "../backend";
-import { t } from "../i18n";
 import type { RgbConfig } from "../types";
 import { SliderEdit, ToggleRow } from "./widgets";
 
@@ -57,7 +56,7 @@ export function RgbLighting() {
       savedConfig.current = JSON.stringify(next);
       setConfig(next);
     } catch (error) {
-      toaster.toast({ title: t("rgb.loadError"), body: String(error) });
+      toaster.toast({ title: "Could not load RGB lighting", body: String(error) });
     }
   }, []);
 
@@ -75,10 +74,17 @@ export function RgbLighting() {
     const timer: number = window.setTimeout(async () => {
       lastUpdate.current = Date.now();
       try {
-        await setRgb(config.enabled, config.color, config.saturation, config.brightness);
+        await setRgb(
+          config.enabled,
+          config.linkBrightness,
+          config.color,
+          config.saturation,
+          config.maxBrightness,
+          config.brightness,
+        );
         savedConfig.current = current;
       } catch (error) {
-        toaster.toast({ title: t("rgb.changeError"), body: String(error) });
+        toaster.toast({ title: "Could not change RGB lighting", body: String(error) });
         load();
       }
     }, delay);
@@ -89,23 +95,31 @@ export function RgbLighting() {
   if (!config) return null;
 
   return (
-    <PanelSection title={t("rgb.title")}>
+    <PanelSection title="RGB Lighting">
       <ToggleRow
-        label={t("common.enabled")}
+        label="Enabled"
         value={config.enabled}
         onChange={(enabled: boolean) => setConfig({ ...config, enabled })}
       />
+      <ToggleRow
+        label="Smart Brightness"
+        value={config.linkBrightness}
+        onChange={(linkBrightness: boolean) => setConfig({ ...config, linkBrightness })}
+      />
       <SliderEdit
-        label={t("common.brightness")}
-        value={config.brightness}
+        label={config.linkBrightness ? "Max Brightness" : "Brightness"}
+        value={config.linkBrightness ? config.maxBrightness : config.brightness}
         min={0}
         max={100}
         step={1}
         disabled={!config.enabled}
-        onChange={(brightness: number) => setConfig({ ...config, brightness })}
+        onChange={(brightness: number) => setConfig(
+          config.linkBrightness ?
+            { ...config, maxBrightness: brightness } :
+            { ...config, brightness })}
       />
       <SliderEdit
-        label={t("common.color")}
+        label="Color"
         value={colorHue(config.color)}
         min={0}
         max={359}
