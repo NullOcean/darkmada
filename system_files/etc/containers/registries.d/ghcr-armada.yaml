@@ -5,3 +5,5 @@ docker:
     use-sigstore-attachments: true
   ghcr.io/andrewmccament/darkmada:
     use-sigstore-attachments: true
+  ghcr.io/nullocean/darkmada:
+    use-sigstore-attachments: true
