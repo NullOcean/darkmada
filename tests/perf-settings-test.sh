@@ -122,7 +122,7 @@ except ValueError:
 
 # --- armada_perf: sanitize + layering ---------------------------------------
 clean = ap.sanitize_perf(
-    {"nice": -99, "gamescopeNice": 99, "gamescopeRr": True, "scheduler": "lavd",
+    {"nice": -99, "gamescopeNice": 99, "scheduler": "lavd",
      "cores": "bogus list", "wineTopology": False}, ENV)
 check("nice clamped", clean["nice"] == ap.NICE_MIN)
 check("gamescope nice clamped", clean["gamescopeNice"] == ap.GAMESCOPE_NICE_MAX)
@@ -132,15 +132,14 @@ check("wineTopology true kept", ap.sanitize_perf({"wineTopology": True})["wineTo
 check("unset keys stay absent", ap.sanitize_perf({}, ENV) == {})
 
 state = {"global": {"gamescopeNice": -5, "gamescopeCores": [3, 4, 5, 6, 7]},
-         "override": {"gamescopeCores": ALL, "gamescopeRr": True, "pid": 1}}
+         "override": {"gamescopeCores": ALL, "pid": 1}}
 eff = ap.effective_state(state)
 check("override all clears restrictive global", eff["gamescopeCores"] == ALL)
 check("global survives where override silent", eff["gamescopeNice"] == -5)
-check("override wins", eff["gamescopeRr"] is True)
 factory_tweaks = gt.load()
 factory_global = factory_tweaks["global"]
 check("factory declares every displayed default", set(factory_global) == {
-    "cores", "fexProfile", "gamescopeCores", "gamescopeNice", "gamescopeRr",
+    "cores", "fexProfile", "gamescopeCores", "gamescopeNice",
     "gamescopeVulkanRealtime", "nice", "scheduler", "thunks", "wineTopology",
 })
 check("factory FEX profile loaded", factory_global["fexProfile"] == "default")
@@ -149,9 +148,9 @@ check("factory core masks are unset",
 check("factory game policy loaded",
       factory_global["nice"] == 0 and factory_global["wineTopology"] is True)
 check("factory gamescope policy loaded",
-      factory_global["gamescopeNice"] == -20 and factory_global["gamescopeRr"] is False and
+      factory_global["gamescopeNice"] == -20 and
       factory_global["gamescopeVulkanRealtime"] is True)
-check("factory scheduler loaded", factory_global["scheduler"] == "eevdf")
+check("factory scheduler loaded", factory_global["scheduler"] is None)
 check("factory thunk defaults loaded",
       set(factory_global["thunks"]) == {"Vulkan", "GL", "drm", "WaylandClient", "asound"} and
       all(factory_global["thunks"].values()))
@@ -182,8 +181,7 @@ check("user values override factory defaults",
       overlaid_global["gamescopeNice"] == 0 and
       overlaid_global["gamescopeVulkanRealtime"] is False)
 check("absent user values inherit factory defaults",
-      overlaid_global["scheduler"] == "eevdf" and
-      overlaid_global["gamescopeRr"] is False and
+      overlaid_global["scheduler"] is None and
       overlaid_global["wineTopology"] is True)
 gt.OVERRIDES_CONFIG.unlink()
 
@@ -256,7 +254,7 @@ def fex_result(settings):
 config_path, plain = fex_result({"fexProfile": "default"})
 check("config lands in test cache dir", config_path.startswith(WORK + "/armada-fex/"))
 _, with_perf = fex_result({"fexProfile": "default", "cores": "big", "nice": -5,
-                           "gamescopeRr": True, "scheduler": "lavd",
+                           "scheduler": "lavd",
                            "env": {"X": "1"}, "wineTopology": False})
 check("FEX config unaffected by perf keys", plain == with_perf)
 check("FEX config content sane", plain["Config"]["Multiblock"] == "0")
@@ -265,17 +263,23 @@ check("missing profile uses safety fallback",
 
 # --- armada-game-launch: explicit affinity reset ----------------------------
 saved = os.sched_getaffinity(0)
+topology_keys = ("WINE_CPU_TOPOLOGY", "PROTON_CPU_TOPOLOGY")
+saved_topology = {key: os.environ[key] for key in topology_keys if key in os.environ}
 try:
     restricted = set(list(saved)[:2]) if len(saved) > 2 else saved
     os.sched_setaffinity(0, restricted)
-    os.environ.pop("WINE_CPU_TOPOLOGY", None)
+    for key in topology_keys:
+        os.environ.pop(key, None)
     launch.apply_perf({}, None)  # session socket warning on stderr is fine
     check("wrapper resets inherited mask", os.sched_getaffinity(0) == set(ap.online_cpus()))
-    check("no topology without cores", "WINE_CPU_TOPOLOGY" not in os.environ)
+    check("no topology without cores", all(key not in os.environ for key in topology_keys))
     launch.apply_perf({"cores": "7,3-6"}, None)
     check("ordered topology derived", os.environ.get("WINE_CPU_TOPOLOGY") == "5:7,3,4,5,6")
+    check("Proton override matches Wine topology",
+          os.environ.get("PROTON_CPU_TOPOLOGY") == "5:7,3,4,5,6")
     check("cores mask applied", os.sched_getaffinity(0) == {3, 4, 5, 6, 7})
-    os.environ.pop("WINE_CPU_TOPOLOGY", None)
+    for key in topology_keys:
+        os.environ.pop(key, None)
     launch.apply_perf({"cores": "big", "scheduler": "cosmos"}, None)
     check("cosmos skips hard mask", os.sched_getaffinity(0) == set(ap.online_cpus()))
     # a malformed env name must not abort the rest of the launch path
@@ -285,9 +289,33 @@ try:
     check("bad env entry contained", os.environ.get("GOODVAR") == "1")
     check("launch path survives bad env", os.sched_getaffinity(0) == {3, 4, 5, 6, 7})
     os.environ.pop("GOODVAR", None)
-    os.environ.pop("WINE_CPU_TOPOLOGY", None)
+    for explicit in (
+            {"WINE_CPU_TOPOLOGY": "2:6,7"},
+            {"PROTON_CPU_TOPOLOGY": "2:7,6"},
+            {"WINE_CPU_TOPOLOGY": "1:6", "PROTON_CPU_TOPOLOGY": "1:7"}):
+        for source in ("inherited", "settings"):
+            for key in topology_keys:
+                os.environ.pop(key, None)
+            settings = {"cores": "7,3-6"}
+            if source == "inherited":
+                os.environ.update(explicit)
+            else:
+                settings["env"] = explicit
+            launch.apply_perf(settings, None)
+            expected = explicit.get("PROTON_CPU_TOPOLOGY", explicit.get("WINE_CPU_TOPOLOGY"))
+            check(f"{source} topology overrides preserved: {explicit}",
+                  all(os.environ.get(key) == explicit.get(key, expected) for key in topology_keys))
+    for key in topology_keys:
+        os.environ.pop(key, None)
+    launch.apply_perf({"cores": "6-7", "wineTopology": False}, None)
+    check("disabled topology exports neither variable",
+          all(key not in os.environ for key in topology_keys))
+    check("disabled topology still pins cores", os.sched_getaffinity(0) == {6, 7})
 finally:
     os.sched_setaffinity(0, saved)
+    for key in topology_keys:
+        os.environ.pop(key, None)
+    os.environ.update(saved_topology)
 
 # --- device-env: topology emission + empty-override semantics ---------------
 device_env_script = os.path.join(ROOT, "system_files/usr/libexec/armada/device-env")
@@ -307,7 +335,7 @@ check("device-env non-SM8250 Proton defaults",
       odin3.get("ARMADA_PROTON_DEFAULTS") ==
       "proton-experimental-arm64:proton_11-arm64:proton-cachyos-11.0-arm64")
 thor = run_device_env("AYN Thor")
-check("device-env SM8550 irq littles", thor.get("ARMADA_IRQ_CORES") == "0-2")
+check("device-env SM8550 irq golds", thor.get("ARMADA_IRQ_CORES") == "3-7")
 thor_override = run_device_env("AYN Thor", {"ARMADA_IRQ_CORES": ""})
 check("device-env explicit-empty override honored",
       thor_override.get("ARMADA_IRQ_CORES") == "''")
@@ -318,6 +346,12 @@ pocket5 = run_device_env("Retroid Pocket 5")
 check("device-env SM8250 Proton defaults",
       pocket5.get("ARMADA_PROTON_DEFAULTS") ==
       "proton-cachyos-11.0-arm64")
+mangmi = run_device_env("MANGMI Air Y Pro")
+check("device-env MANGMI profile",
+      mangmi.get("ARMADA_DEVICE_ID") == "mangmi-air-y-pro" and
+      mangmi.get("ARMADA_SOC_CLASS") == "SM8250" and
+      mangmi.get("ARMADA_GAMESCOPE_FAKE_OUTPUT_MM") == "120x90" and
+      mangmi.get("ARMADA_IP_TARGETS") == "ds5")
 
 # --- armada-powerd: config parsing ------------------------------------------
 powerd = load_script("armada-powerd")
@@ -367,7 +401,7 @@ finally:
 
 with gt.OVERRIDES_CONFIG.open("w") as f:
     json.dump({"global": {"gamescopeNice": -5},
-               "games": {"620": {"gamescopeRr": True, "scheduler": "cosmos",
+               "games": {"620": {"scheduler": "cosmos",
                                  "cores": "big", "nice": -4}}}, f)
 
 sel = selectors.DefaultSelector()
@@ -382,19 +416,18 @@ try:
     state = ap.read_state()
     override = state.get("override", {})
     check("override tracks pid", override.get("pid") == child.pid)
-    check("override carries rr", override.get("gamescopeRr") is True)
     check("cosmos domain from cores", override.get("schedulerDomain") == [3, 4, 5, 6, 7])
     check("pidfd armed", manager.pidfd is not None)
 
     # live tweaks edit rebuilds the override instead of dropping it
     with gt.OVERRIDES_CONFIG.open("w") as f:
         json.dump({"global": {"gamescopeNice": -5},
-                   "games": {"620": {"gamescopeRr": False, "scheduler": "lavd"}}}, f)
+                   "games": {"620": {"scheduler": "lavd"}}}, f)
     manager.refresh(keep_override=True)
     override = ap.read_state().get("override", {})
     check("keep_override survives edit", override.get("pid") == child.pid)
     check("override rebuilt from new tweaks",
-          override.get("scheduler") == "lavd" and override.get("gamescopeRr") is False)
+          override.get("scheduler") == "lavd")
 
     # a launch whose layer equals global still tracks the session
     child2 = subprocess.Popen(["sleep", "30"])

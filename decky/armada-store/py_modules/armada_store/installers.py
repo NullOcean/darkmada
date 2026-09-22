@@ -1,7 +1,6 @@
 import fcntl
 import json
 import os
-import pty
 import re
 import select
 import ssl
@@ -68,14 +67,24 @@ def _release_assets(release):
     # GitLab nests downloads as assets.links[]; GitHub and Forgejo use a flat
     # assets[] with browser_download_url.
     if isinstance(assets, dict):
-        return [(link.get("name") or "", link.get("url")) for link in assets.get("links") or []]
-    return [(asset.get("name") or "", asset.get("browser_download_url")) for asset in assets or []]
+        return [(link.get("name") or "", link.get("url"), "") for link in assets.get("links") or []]
+    return [(asset.get("name") or "", asset.get("browser_download_url"), _asset_date(asset))
+            for asset in assets or []]
 
 
 # ISO-8601 sorts correctly as a string, so no parsing is needed to order these.
 def _release_date(release):
     for key in ("published_at", "released_at", "created_at"):
         value = release.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
+# A fixed-tag release that has its assets replaced keeps its publication date.
+def _asset_date(asset):
+    for key in ("updated_at", "created_at"):
+        value = asset.get(key)
         if value:
             return str(value)
     return ""
@@ -93,15 +102,16 @@ def resolve_release_asset(releases_url, asset_pattern):
         for release in releases:
             if release.get("draft") or (skip_prerelease and release.get("prerelease")):
                 continue
-            for name, url in _release_assets(release):
+            for name, url, asset_date in _release_assets(release):
                 if url and pattern.search(name):
                     # RPCS3's arm64 feed is ordered by tag string, so taking
                     # the head of the list pinned a build a year stale.
-                    if best is None or _release_date(release) > best[0]:
-                        best = (_release_date(release), release.get("tag_name") or "", url)
+                    date = _release_date(release)
+                    if best is None or date > best[0]:
+                        best = (date, release.get("tag_name") or "", url, asset_date or date)
                     break
         if best is not None:
-            return best[1], best[2], best[0]
+            return best[1], best[2], best[3]
     raise RuntimeError("No release asset matched " + asset_pattern)
 
 
@@ -141,7 +151,7 @@ def _clean_output(raw):
 def _run_flatpak(args, cancel, on_percent):
     # flatpak renders progress only on a sized tty with TERM set, and
     # --noninteractive suppresses it entirely; -y alone keeps this unattended.
-    master, slave = pty.openpty()
+    master, slave = os.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
     env = clean_env({"LC_ALL": "C.UTF-8", "TERM": "xterm"})
     proc = subprocess.Popen(["flatpak", *args], stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True)
@@ -199,7 +209,7 @@ def install_flatpak(ref, cancel, on_percent):
 
 # Emulator manifests rarely grant removable media, and DuckStation's grants no
 # filesystem access at all. Armada mounts cards under /run/media.
-BASE_OVERRIDES = ("--filesystem=/run/media", "--filesystem=/media")
+BASE_OVERRIDES = ("--filesystem=/var/home/armada", "--filesystem=/home/armada", "--filesystem=/run/media", "--filesystem=/media")
 
 
 # Persistent rather than a `flatpak run` argument: ES-DE launches the flatpak

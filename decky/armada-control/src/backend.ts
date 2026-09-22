@@ -19,8 +19,13 @@ export const saveCompatApplied = (appids: string[], protonDefault: string | null
 export const setSshEnabled = (enabled: boolean) => call<[boolean], boolean>("set_ssh_enabled", enabled);
 export const setMtpEnabled = (enabled: boolean) => call<[boolean], boolean>("set_mtp_enabled", enabled);
 export const setAblAutoEnabled = (enabled: boolean) => call<[boolean], boolean>("set_abl_auto_enabled", enabled);
+export const setBottomScreenEnabled = (enabled: boolean) => call<[boolean], boolean>("set_bottom_screen_enabled", enabled);
+export const setBottomScreenBrightness = (brightness: number) => call<[number], number>("set_bottom_screen_brightness", brightness);
+export const getBottomScreenActive = () => call<[], boolean>("get_bottom_screen_active");
 export const setDesktopMode = (value: string) => call<[string], string>("set_desktop_mode", value);
 export const setSleepMode = (value: string) => call<[string], string>("set_sleep_mode", value);
+export const getSleepLogsEnabled = () => call<[], boolean>("get_sleep_logs_enabled");
+export const setSleepLogsEnabled = (enabled: boolean) => call<[boolean], boolean>("set_sleep_logs_enabled", enabled);
 export const reapplyPerf = () => call<[], { pids?: number }>("reapply_perf");
 export const restartGameMode = () => call<[], boolean>("restart_game_mode");
 export const setControllerType = (value: string) => call<[string], string>("set_controller_type", value);

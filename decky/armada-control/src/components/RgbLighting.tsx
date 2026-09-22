@@ -2,6 +2,7 @@ import { toaster } from "@decky/api";
 import { PanelSection } from "@decky/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getRgb, setRgb } from "../backend";
+import { t } from "../i18n";
 import type { RgbConfig } from "../types";
 import { SliderEdit, ToggleRow } from "./widgets";
 
@@ -56,7 +57,7 @@ export function RgbLighting() {
       savedConfig.current = JSON.stringify(next);
       setConfig(next);
     } catch (error) {
-      toaster.toast({ title: "Could not load RGB lighting", body: String(error) });
+      toaster.toast({ title: t("rgb.loadError"), body: String(error) });
     }
   }, []);
 
@@ -77,7 +78,7 @@ export function RgbLighting() {
         await setRgb(config.enabled, config.linkBrightness, config.color, config.maxBrightness, config.brightness);
         savedConfig.current = current;
       } catch (error) {
-        toaster.toast({ title: "Could not change RGB lighting", body: String(error) });
+        toaster.toast({ title: t("rgb.changeError"), body: String(error) });
         load();
       }
     }, delay);
@@ -88,9 +89,9 @@ export function RgbLighting() {
   if (!config) return null;
 
   return (
-    <PanelSection title="RGB Lighting">
+    <PanelSection title={t("rgb.title")}>
       <ToggleRow
-        label="Enabled"
+        label={t("common.enabled")}
         value={config.enabled}
         onChange={(enabled: boolean) => setConfig({ ...config, enabled })}
       />
@@ -100,7 +101,7 @@ export function RgbLighting() {
         onChange={(linkBrightness: boolean) => setConfig({ ...config, linkBrightness })}
       />
       <SliderEdit
-        label={config.linkBrightness ? "Max Brightness" : "Brightness"}
+        label={config.linkBrightness ? "Max Brightness" : t("common.brightness")}
         value={config.linkBrightness ? config.maxBrightness : config.brightness}
         min={0}
         max={100}
@@ -112,7 +113,7 @@ export function RgbLighting() {
             { ...config, brightness })}
       />
       <SliderEdit
-        label="Color"
+        label={t("common.color")}
         value={colorHue(config.color)}
         min={0}
         max={359}

@@ -13,12 +13,17 @@ from armada_control.power import save_power_config
 from armada_control.rgb import get_rgb, set_rgb
 from armada_control.steam import compat_mapped_appids, installed_games
 from armada_control.system import (
+    bottom_screen_active,
     reapply_perf,
     restart_game_mode,
     set_abl_auto_enabled,
+    set_bottom_screen_brightness,
+    set_bottom_screen_enabled,
+    get_sleep_logs_enabled,
     set_mtp_enabled,
     set_desktop_mode,
     set_sleep_mode,
+    set_sleep_logs_enabled,
     set_ssh_enabled,
 )
 from armada_control.tweaks import load_compat_applied, save_compat_applied, save_tweaks
@@ -60,11 +65,26 @@ class Plugin:
     async def set_abl_auto_enabled(self, enabled):
         return await asyncio.to_thread(set_abl_auto_enabled, enabled)
 
+    async def set_bottom_screen_enabled(self, enabled):
+        return await asyncio.to_thread(set_bottom_screen_enabled, enabled)
+
+    async def set_bottom_screen_brightness(self, brightness):
+        return await asyncio.to_thread(set_bottom_screen_brightness, brightness)
+
+    async def get_bottom_screen_active(self):
+        return await asyncio.to_thread(bottom_screen_active)
+
     async def set_desktop_mode(self, value):
         return await asyncio.to_thread(set_desktop_mode, value)
 
     async def set_sleep_mode(self, value):
         return await asyncio.to_thread(set_sleep_mode, value)
+
+    async def get_sleep_logs_enabled(self):
+        return await asyncio.to_thread(get_sleep_logs_enabled)
+
+    async def set_sleep_logs_enabled(self, enabled):
+        return await asyncio.to_thread(set_sleep_logs_enabled, enabled)
 
     async def reapply_perf(self):
         return await asyncio.to_thread(reapply_perf)

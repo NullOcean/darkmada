@@ -8,10 +8,13 @@ from .privileged import call
 
 OS_VERSION_PATH = Path("/usr/lib/armada/version")
 MEM_SLEEP_PATH = Path("/sys/power/mem_sleep")
+SLEEP_DEBUG_COMMAND = Path("/usr/bin/armada-sleep-debug")
+SLEEP_LOG_HOOK_SOURCE = Path(__file__).with_name("sleep_debug_hook.sh")
+SLEEP_LOG_HOOK = Path("/etc/armada/sleep-debug-hook")
+SLEEP_LOG_DROPIN = Path("/etc/systemd/system/systemd-suspend.service.d/90-armada-sleep-debug.conf")
 SLEEP_MODE_LABELS = {
+    "s2idle": "Native",
     "fake": "Fake",
-    "s2idle": "s2idle",
-    "deep": "Deep",
 }
 DESKTOP_MODE_LABELS = {
     "mobile": "Plasma Mobile",
@@ -111,6 +114,39 @@ def set_mtp_enabled(enabled):
 def set_abl_auto_enabled(enabled):
     return bool(call("set_abl_auto_enabled", enabled=bool(enabled)).get("enabled"))
 
+
+def bottom_screen_enabled():
+    try:
+        return bool(call("get_bottom_screen_enabled").get("enabled"))
+    except Exception:
+        return False
+
+
+def set_bottom_screen_enabled(enabled):
+    return bool(call("set_bottom_screen_enabled", enabled=bool(enabled)).get("enabled"))
+
+
+def bottom_screen_brightness():
+    try:
+        result = call("get_bottom_screen_brightness")
+        if result.get("supported"):
+            return int(result.get("brightness", 0))
+    except Exception:
+        pass
+    return None
+
+
+def bottom_screen_active():
+    try:
+        return bool(call("get_bottom_screen_brightness").get("active"))
+    except Exception:
+        return False
+
+
+def set_bottom_screen_brightness(brightness):
+    return int(call("set_bottom_screen_brightness", brightness=brightness).get("brightness", 0))
+
+
 def desktop_mode() -> str:
     try:
         value = str(call("get_desktop_mode").get("value", ""))
@@ -130,14 +166,51 @@ def desktop_modes():
     return [{"data": mode, "label": DESKTOP_MODE_LABELS[mode]} for mode in modes]
 
 def sleep_modes():
-    modes = ["fake"]
     advertised = {word.strip("[]") for word in read_text(MEM_SLEEP_PATH).split()}
-    modes.extend(mode for mode in ("s2idle", "deep") if mode in advertised)
+    modes = (["s2idle"] if "s2idle" in advertised else []) + ["fake"]
     return [{"data": mode, "label": SLEEP_MODE_LABELS[mode]} for mode in modes]
 
 
 def set_sleep_mode(value):
     return str(call("set_sleep_mode", value=str(value)).get("value"))
+
+
+def get_sleep_logs_enabled():
+    return SLEEP_LOG_DROPIN.is_file()
+
+
+def set_sleep_logs_enabled(enabled):
+    if enabled:
+        if not SLEEP_DEBUG_COMMAND.is_file() or not SLEEP_LOG_HOOK_SOURCE.is_file():
+            raise RuntimeError("Native sleep logging is unavailable.")
+        SLEEP_LOG_HOOK.parent.mkdir(parents=True, exist_ok=True)
+        SLEEP_LOG_HOOK.write_bytes(SLEEP_LOG_HOOK_SOURCE.read_bytes())
+        os.chmod(SLEEP_LOG_HOOK, 0o755)
+        SLEEP_LOG_DROPIN.parent.mkdir(parents=True, exist_ok=True)
+        SLEEP_LOG_DROPIN.write_text(
+            "[Service]\n"
+            "ExecStartPre=-/etc/armada/sleep-debug-hook prepare\n"
+            "ExecStartPost=-/etc/armada/sleep-debug-hook collect\n",
+            encoding="utf-8",
+        )
+    else:
+        SLEEP_LOG_DROPIN.unlink(missing_ok=True)
+
+    try:
+        subprocess.run(
+            ["/usr/bin/systemctl", "daemon-reload"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=15,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(exc.stderr.strip() or "Could not reload systemd sleep logging.") from exc
+    except subprocess.SubprocessError as exc:
+        raise RuntimeError("Could not reload systemd sleep logging.") from exc
+
+    return bool(enabled)
 
 
 CORE_PRESET_VARS = (

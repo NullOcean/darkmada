@@ -1,42 +1,69 @@
-ARG FEX_PKG=ghcr.io/armada-os/armada-packages/fex@sha256:277a25328499761e570bfb1f7fdce44b29dee074d76462402b0d8c361dacdffc
-ARG MESA_PKG=ghcr.io/armada-os/armada-packages/mesa@sha256:559c976d78bcc771f574c18d8fed5debcc3b8856a0ff448e968940480bca1165
-ARG MESA_ANDROID_PKG=ghcr.io/armada-os/armada-packages/mesa-android@sha256:1e7d5f5e692c38b7545e0c0774bbee45ab1b634309d9240f0e08b407b3fcc526
-ARG MESA_X86_PKG=ghcr.io/armada-os/armada-packages/mesa-x86@sha256:f891d7fc16daf816d68c602655336e5cae1aae8b0aa3e1ef47a6215e4c4b11e5
-ARG MANGOHUD_PKG=ghcr.io/armada-os/armada-packages/mangohud@sha256:c68472ba185d91c25ef0d0cb7046058cedf5a86203ab5e073c6f21ec43694c7b
-ARG GAMESCOPE_PKG=ghcr.io/armada-os/armada-packages/gamescope@sha256:d774bf38913f6c6e06df85e7b2bbe202ee4ea18947bb5cbb6e2c177802acce2d
-ARG GAMESCOPE_SESSION_PKG=ghcr.io/armada-os/armada-packages/gamescope-session@sha256:2f8577c16e5f7ac12b89b1e7d602e399b3d4a52ad4c246f1d28ff1633b43f403
-ARG GAMESCOPE_SESSION_STEAM_PKG=ghcr.io/armada-os/armada-packages/gamescope-session-steam@sha256:776fcc4968f0c82f4c8e6a4b643733e52f068d178a974d33fd4062a90cad063c
-ARG KWIN_PKG=ghcr.io/armada-os/armada-packages/kwin@sha256:04e3692d5badb820a7251e3f3a8ac3944303b10b906922d895899e8400423d01
-ARG POWERDEVIL_PKG=ghcr.io/armada-os/armada-packages/powerdevil@sha256:538904e7895bbe6a3aed0ce1a1122d282fa80f64d650845bf3d606754207f5ca
-ARG KERNEL_PKG=ghcr.io/armada-os/armada-packages/kernel@sha256:55d6b4e05cc55c0bfd76c28233d8a49192ce23857d51a6003c29cdcda42664fa
-ARG INPUTPLUMBER_PKG=ghcr.io/armada-os/armada-packages/inputplumber@sha256:894bcb70919f6182c1b1c3ada40c7389d0ffee4b92d9b7a7088a62f540503f6b
-ARG EXTEST_PKG=ghcr.io/armada-os/armada-packages/extest@sha256:13aee022b77eb9212be1debb74cd1d5a5c6ed94aa42bdac7e6b3a6e72e38101b
-ARG NETWORKMANAGER_PKG=ghcr.io/armada-os/armada-packages/networkmanager@sha256:cea22dd25c2d033ec14bc9154a87153ef8331ba725bde036dd7a05ad1430747d
-ARG JUPITER_HW_SUPPORT_PKG=ghcr.io/armada-os/armada-packages/jupiter-hw-support@sha256:efc0739700ede36ed08c894445973ce2b594c70a0ee487fd5cf209bc07c955ee
-ARG ARMADA_SPLASH_PKG=ghcr.io/armada-os/armada-packages/armada-splash@sha256:6b018ab61218ad5b760fc93b27f7f6af4af4fb6301cb1ed4711cd33ded8c0ea0
-ARG ARMADA_RGB_PKG=ghcr.io/armada-os/armada-packages/armada-rgb@sha256:a7b66324d7bf8030e260d5f2fc9074ad9ced7c47852187783f5e3e082d0ebc25
-ARG UMTP_RESPONDER_PKG=ghcr.io/armada-os/armada-packages/umtp-responder@sha256:0e7f962145b72de85c2a3563d947c6357fc3a1a34797b7106cbff1c8832078ea
 ARG CHUNKAH_IMAGE=quay.io/coreos/chunkah@sha256:ff8b8b466a942ec6000445d4001fc661e2fc5a952ad9ee29b4de9ab09d1d1708
 ARG BASE_IMAGE=quay.io/fedora/fedora-bootc:44
 
-FROM ${FEX_PKG} AS fex
-FROM ${MESA_PKG} AS mesa
-FROM ${MANGOHUD_PKG} AS mangohud
-FROM ${GAMESCOPE_PKG} AS gamescope
-FROM ${GAMESCOPE_SESSION_PKG} AS gamescope-session
-FROM ${GAMESCOPE_SESSION_STEAM_PKG} AS gamescope-session-steam
-FROM ${KWIN_PKG} AS kwin
-FROM ${POWERDEVIL_PKG} AS powerdevil
-FROM ${KERNEL_PKG} AS kernel
-FROM ${INPUTPLUMBER_PKG} AS inputplumber
-FROM ${NETWORKMANAGER_PKG} AS networkmanager
-FROM ${JUPITER_HW_SUPPORT_PKG} AS jupiter-hw-support
-FROM ${MESA_ANDROID_PKG} AS mesa-android
-FROM ${MESA_X86_PKG} AS mesa-x86
-FROM ${EXTEST_PKG} AS extest
-FROM ${ARMADA_SPLASH_PKG} AS armada-splash
-FROM ${ARMADA_RGB_PKG} AS armada-rgb
-FROM ${UMTP_RESPONDER_PKG} AS umtp-responder
+# Package images, resolved by content hash. The Packages workflow publishes each
+# as ghcr.io/<owner>/armada/pkg/<name>:<tag>, tagged by packages/package-hash.sh
+# from that package's sources, and passes the refs in as build args.
+
+ARG STEAM_BOOTSTRAP_REF
+FROM ${STEAM_BOOTSTRAP_REF} AS steam-bootstrap
+
+ARG FEX_REF
+FROM ${FEX_REF} AS fex
+
+ARG MESA_REF
+FROM ${MESA_REF} AS mesa
+
+ARG MANGOHUD_REF
+FROM ${MANGOHUD_REF} AS mangohud
+
+ARG GAMESCOPE_REF
+FROM ${GAMESCOPE_REF} AS gamescope
+
+ARG GAMESCOPE_SESSION_REF
+FROM ${GAMESCOPE_SESSION_REF} AS gamescope-session
+
+ARG GAMESCOPE_SESSION_STEAM_REF
+FROM ${GAMESCOPE_SESSION_STEAM_REF} AS gamescope-session-steam
+
+ARG KWIN_REF
+FROM ${KWIN_REF} AS kwin
+
+ARG PLASMA_MOBILE_REF
+FROM ${PLASMA_MOBILE_REF} AS plasma-mobile
+
+ARG POWERDEVIL_REF
+FROM ${POWERDEVIL_REF} AS powerdevil
+
+ARG KERNEL_REF
+FROM ${KERNEL_REF} AS kernel
+
+ARG INPUTPLUMBER_REF
+FROM ${INPUTPLUMBER_REF} AS inputplumber
+
+ARG NETWORKMANAGER_REF
+FROM ${NETWORKMANAGER_REF} AS networkmanager
+
+ARG JUPITER_HW_SUPPORT_REF
+FROM ${JUPITER_HW_SUPPORT_REF} AS jupiter-hw-support
+
+ARG MESA_ANDROID_REF
+FROM ${MESA_ANDROID_REF} AS mesa-android
+
+ARG MESA_X86_REF
+FROM ${MESA_X86_REF} AS mesa-x86
+
+ARG EXTEST_REF
+FROM ${EXTEST_REF} AS extest
+
+ARG ARMADA_SPLASH_REF
+FROM ${ARMADA_SPLASH_REF} AS armada-splash
+
+ARG ARMADA_RGB_REF
+FROM ${ARMADA_RGB_REF} AS armada-rgb
+
+ARG UMTP_RESPONDER_REF
+FROM ${UMTP_RESPONDER_REF} AS umtp-responder
 
 FROM docker.io/library/node:22-slim AS decky-build
 WORKDIR /build/armada-control
@@ -61,6 +88,7 @@ ARG ARMADA_VERSION=unknown
 LABEL org.opencontainers.image.version="${ARMADA_VERSION}"
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,from=steam-bootstrap,source=/steam-bootstrap,target=/packages/steam-bootstrap \
     --mount=type=bind,from=fex,source=/rpms,target=/packages/fex \
     --mount=type=bind,from=mesa,source=/rpms,target=/packages/mesa \
     --mount=type=bind,from=mangohud,source=/rpms,target=/packages/mangohud \
@@ -68,6 +96,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=gamescope-session,source=/rpms,target=/packages/gamescope-session \
     --mount=type=bind,from=gamescope-session-steam,source=/rpms,target=/packages/gamescope-session-steam \
     --mount=type=bind,from=kwin,source=/rpms,target=/packages/kwin \
+    --mount=type=bind,from=plasma-mobile,source=/rpms,target=/packages/plasma-mobile \
     --mount=type=bind,from=powerdevil,source=/rpms,target=/packages/powerdevil \
     --mount=type=bind,from=kernel,source=/kernel,target=/packages/kernel \
     --mount=type=bind,from=inputplumber,source=/rpms,target=/packages/inputplumber \
