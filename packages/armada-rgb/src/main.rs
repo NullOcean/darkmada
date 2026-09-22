@@ -19,6 +19,15 @@ enum Command {
     Get,
     /// Set a solid color and brightness.
     Set {
+        /// Whether the RGB lighting is enabled.
+        #[arg(long, action = clap::ArgAction::Set)]
+        enabled: Option<bool>,
+        /// Link RGB brightness to screen brightness.
+        #[arg(long, action = clap::ArgAction::Set)]
+        link_brightness: Option<bool>,
+        /// Maximum RGB brightness while screen linking is enabled.
+        #[arg(long)]
+        max_brightness: Option<u8>,
         #[arg(long)]
         color: String,
         #[arg(long)]
@@ -50,13 +59,22 @@ fn main() -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&config)?);
         }
         Command::Set {
+            enabled,
+            link_brightness,
+            max_brightness,
             color,
             saturation,
             brightness,
             correction,
         } => {
             let mut config: LightingConfig = controller.get()?;
-            config.enabled = true;
+            config.enabled = enabled.unwrap_or(true);
+            if let Some(link_brightness) = link_brightness {
+                config.link_brightness = link_brightness;
+            }
+            if let Some(max_brightness) = max_brightness {
+                config.max_brightness = max_brightness;
+            }
             config.color = color;
 
             if let Some(saturation) = saturation {
