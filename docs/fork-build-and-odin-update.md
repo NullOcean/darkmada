@@ -162,7 +162,7 @@ such as `odin`. The build workflow maps a manually dispatched non-reserved
 branch directly to a tag of the same name.
 
 ```bash
-git push -u origin odin
+git push -u origin HEAD:odin
 gh workflow run build.yml --repo andrewmccament/darkmada --ref odin
 gh run list --repo andrewmccament/darkmada \
   --workflow build.yml --branch odin --event workflow_dispatch --limit 3
