@@ -46,7 +46,7 @@ enum Command {
     /// Watch display brightness and reapply linked RGB brightness when it changes.
     Watch {
         /// Polling interval in milliseconds.
-        #[arg(long, default_value_t = 500)]
+        #[arg(long, default_value_t = 200)]
         interval_ms: u64,
     },
 }

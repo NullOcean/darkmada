@@ -109,7 +109,9 @@ fn enabled(color: &str, brightness: u8) -> LightingConfig {
     LightingConfig {
         version: 1,
         enabled: true,
+        link_brightness: false,
         brightness,
+        max_brightness: 25,
         color: color.into(),
         saturation: 100,
         correction: None,

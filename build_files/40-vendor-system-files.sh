@@ -89,7 +89,7 @@ systemctl enable armada-guestos.service
 systemctl enable usr-share-guestos-android.mount
 systemctl enable armada-device-quirks.service
 systemctl enable armada-rgb.service
-systemctl enable armada-rgb-brightness-watch.service
+systemctl enable armada-rgb-brightness-watch.path
 systemctl enable armada-fixups.service
 systemctl enable armada-update-reserve.service
 systemctl enable armada-installer-visibility.service

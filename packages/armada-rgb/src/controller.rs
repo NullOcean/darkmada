@@ -60,6 +60,21 @@ impl Controller {
         Ok(None)
     }
 
+    pub fn apply_if_linked(&self) -> Result<Option<String>> {
+        if let Some(reason) = self.backend.unsupported_reason() {
+            return Ok(Some(reason.into()));
+        }
+
+        let config: LightingConfig = self.get()?;
+        if !config.enabled || !config.link_brightness {
+            return Ok(None);
+        }
+
+        let applied_config: LightingConfig = Self::config_for_apply(&config)?;
+        self.backend.apply(&applied_config)?;
+        Ok(None)
+    }
+
     fn config_for_apply(config: &LightingConfig) -> Result<LightingConfig> {
         let mut applied_config: LightingConfig = config.clone();
         if config.enabled && config.link_brightness {

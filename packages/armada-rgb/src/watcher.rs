@@ -17,8 +17,10 @@ pub fn watch_brightness(controller: &Controller, interval: Duration) -> Result<(
                     .map(|previous| previous != brightness)
                     .unwrap_or(false)
                 {
-                    if let Some(reason) = controller.apply()? {
-                        eprintln!("RGB unsupported: {reason}");
+                    match controller.apply_if_linked() {
+                        Ok(Some(reason)) => eprintln!("RGB unsupported: {reason}"),
+                        Ok(None) => {}
+                        Err(error) => eprintln!("RGB brightness apply failed: {error:#}"),
                     }
                 }
                 previous_brightness = Some(brightness);
