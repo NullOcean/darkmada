@@ -33,7 +33,8 @@ pub(crate) fn screen_brightness_percent() -> Result<u8> {
 pub(crate) fn linked_brightness(screen_percent: u8, max_brightness: u8) -> u8 {
     let screen_percent: u16 = u16::from(screen_percent.min(100));
     let max_brightness: u16 = u16::from(max_brightness.min(100));
-    ((screen_percent * max_brightness + 50) / 100) as u8
+    let scaled: u16 = (screen_percent * max_brightness + 50) / 100;
+    scaled.clamp(1, 100) as u8
 }
 
 fn select_backlight(root: &Path) -> Result<PathBuf> {
