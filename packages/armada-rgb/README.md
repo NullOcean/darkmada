@@ -17,7 +17,7 @@ armada-rgb supported
 ```
 
 Settings are saved to `/etc/armada/rgb.json` after the hardware was
-updated successfully. `armada-rgb watch` polls display brightness every 500 ms
+updated successfully. `armada-rgb watch` polls display brightness every 200 ms
 by default and reapplies the settings when the brightness percentage changes.
 The system image runs it as `armada-rgb-brightness-watch.service`. Only LED
 names declared by the matched profile are used.
