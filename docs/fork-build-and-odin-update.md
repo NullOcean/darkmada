@@ -327,18 +327,30 @@ Test both Gaming Mode and Desktop Mode before considering the deployment good.
 
 ## Updating later builds
 
-When a new signed image is published to the same `odin` tag, Armada's updater
-can follow that nonstandard tag because the booted origin includes it. For an
-explicit development update:
+When a new signed image is published to the same `odin` tag, update an Odin
+that is already running `ghcr.io/andrewmccament/darkmada:odin` with this routine:
 
 ```bash
 sudo bootc upgrade
 sudo bootc status
+```
+
+Before rebooting, confirm `bootc status` lists the expected version and digest
+under **Staged image** (and `UpdateVersion` / `UpdateDigest`). If the expected
+build is staged, reboot:
+
+```bash
 sudo systemctl reboot
 ```
 
-Verify the booted digest after reconnecting. Avoid starting a second update
-while a deployment is already staged.
+After reconnecting, verify that the new version and digest appear under
+**Booted image**:
+
+```bash
+sudo bootc status
+```
+
+Do not start another update while a deployment is already staged.
 
 The SteamOS channel picker translates Preview, Beta, and Stable to the
 `testing`, `beta`, and `stable` tags, but the current updater allowlist only
