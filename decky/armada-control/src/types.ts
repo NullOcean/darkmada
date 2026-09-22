@@ -74,6 +74,8 @@ export interface CalibrationState {
 export interface RgbConfig {
   version: number;
   enabled: boolean;
+  linkBrightness: boolean;
+  maxBrightness: number;
   brightness: number;
   color: string;
 }

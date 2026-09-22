@@ -25,8 +25,8 @@ export const reapplyPerf = () => call<[], { pids?: number }>("reapply_perf");
 export const restartGameMode = () => call<[], boolean>("restart_game_mode");
 export const setControllerType = (value: string) => call<[string], string>("set_controller_type", value);
 export const getRgb = () => call<[], RgbConfig | null>("get_rgb");
-export const setRgb = (enabled: boolean, color: string, brightness: number) =>
-  call<[boolean, string, number], RgbConfig>("set_rgb", enabled, color, brightness);
+export const setRgb = (enabled: boolean, linkBrightness: boolean, color: string, maxBrightness: number, brightness: number) =>
+  call<[boolean, boolean, string, number, number], RgbConfig>("set_rgb", enabled, linkBrightness, color, maxBrightness, brightness);
 export const getControllerState = () => call<[], CalibrationState>("get_controller_state");
 export const saveCalibration = (capture: Capture) => call<[Capture], CalibrationState>("save_calibration", capture);
 export const resetCalibration = () => call<[], CalibrationState>("reset_calibration");
