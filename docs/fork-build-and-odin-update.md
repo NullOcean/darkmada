@@ -13,7 +13,7 @@ templates. Replace every placeholder before running them.
 Use three pieces:
 
 1. The Git repository is the source of truth.
-2. GitHub Actions builds and signs `ghcr.io/andrewmccament/darkmada:odin` on a
+2. GitHub Actions builds and signs `ghcr.io/nullocean/darkmada:odin` on a
    native ARM runner.
 3. The Odin uses `bootc switch` once to adopt that image. Later builds on the
    same tag can be installed with `bootc upgrade` or Armada's update UI.
@@ -50,7 +50,7 @@ git remote -v
 The expected URLs are:
 
 ```text
-origin    https://github.com/andrewmccament/darkmada.git
+origin    https://github.com/NullOcean/darkmada.git
 upstream  https://github.com/armada-os/armada.git
 ```
 
@@ -71,9 +71,9 @@ cosign generate-key-pair \
 Store the encrypted private key and its password as separate Actions secrets:
 
 ```bash
-gh secret set SIGNING_SECRET --repo andrewmccament/darkmada \
+gh secret set SIGNING_SECRET --repo NullOcean/darkmada \
   < "$HOME/.config/armada-signing/armada.key"
-gh secret set SIGNING_PASSWORD --repo andrewmccament/darkmada
+gh secret set SIGNING_PASSWORD --repo NullOcean/darkmada
 ```
 
 Add `COSIGN_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}` to the signing step's
@@ -93,7 +93,7 @@ example:
 system_files/etc/pki/containers/darkmada.pub
 ```
 
-Add an exact policy scope for `ghcr.io/andrewmccament/darkmada` to
+Add an exact policy scope for `ghcr.io/nullocean/darkmada` to
 `system_files/etc/containers/policy.json`. That scope should require a
 `sigstoreSigned` image using the personal public key and `matchRepository`.
 Also add the fork repository to
@@ -115,13 +115,13 @@ The image is assembled from content-addressed package images. The current fork
 workflow looks only under:
 
 ```text
-ghcr.io/andrewmccament/armada/pkg/<package>:<source-hash>
+ghcr.io/nullocean/darkmada/pkg/<package>:<source-hash>
 ```
 
 That inherited path is also named `armada`, even though the fork is named
 `darkmada`. Change `.github/workflows/packages.yml` to publish personal
 packages under
-`ghcr.io/andrewmccament/darkmada/pkg/<package>:<source-hash>` and resolve them
+`ghcr.io/nullocean/darkmada/pkg/<package>:<source-hash>` and resolve them
 in this order:
 
 1. Use the matching package from the fork when it exists.
@@ -163,23 +163,23 @@ branch directly to a tag of the same name.
 
 ```bash
 git push -u origin HEAD:odin
-gh workflow run build.yml --repo andrewmccament/darkmada --ref odin
-gh run list --repo andrewmccament/darkmada \
+gh workflow run build.yml --repo NullOcean/darkmada --ref odin
+gh run list --repo NullOcean/darkmada \
   --workflow build.yml --branch odin --event workflow_dispatch --limit 3
-gh run watch <run-id> --repo andrewmccament/darkmada --exit-status
+gh run watch <run-id> --repo NullOcean/darkmada --exit-status
 ```
 
 The result should be a signed image:
 
 ```text
-ghcr.io/andrewmccament/darkmada:odin
+ghcr.io/nullocean/darkmada:odin
 ```
 
 Resolve and record its immutable digest before deployment:
 
 ```bash
 skopeo inspect --format '{{.Digest}}' \
-  docker://ghcr.io/andrewmccament/darkmada:odin
+  docker://ghcr.io/nullocean/darkmada:odin
 ```
 
 Verify the digest with the personal public key:
@@ -187,7 +187,7 @@ Verify the digest with the personal public key:
 ```bash
 cosign verify \
   --key system_files/etc/pki/containers/darkmada.pub \
-  ghcr.io/andrewmccament/darkmada@sha256:<digest>
+  ghcr.io/nullocean/darkmada@sha256:<digest>
 ```
 
 Do not deploy merely because the mutable tag exists. Confirm that the build
@@ -202,10 +202,13 @@ published image from GHCR.
 
 ### Bootstrap trust on an existing upstream installation
 
-An Odin currently running upstream Armada does not yet have the fork's public
-key or its GHCR signature-attachment configuration. Install those two public
-trust files before the first signed `bootc switch`; do not disable signature
-verification to work around this bootstrap step.
+An Odin that has not yet trusted the new `ghcr.io/nullocean/darkmada`
+namespace does not have the required policy and GHCR signature-attachment
+configuration. This includes a device still running the previous
+`ghcr.io/andrewmccament/darkmada` image. Install the public trust files and add
+the new namespace before the first switch; do not disable signature
+verification to work around this bootstrap step. The old namespace remains in
+the image policy during the transition so rollback stays available.
 
 From the workstation, copy the public key to the device:
 
@@ -227,7 +230,7 @@ Add the fork image policy. This requires `jq`:
 
 ```bash
 command -v jq
-jq '.transports.docker["ghcr.io/andrewmccament/darkmada"] = [{
+jq '.transports.docker["ghcr.io/nullocean/darkmada"] = [{
   "type":"sigstoreSigned",
   "keyPaths":["/etc/pki/containers/darkmada.pub"],
   "signedIdentity":{"type":"matchRepository"}
@@ -244,7 +247,7 @@ sudo mkdir -p /etc/containers/registries.d
 sudo cp -a /etc/containers/registries.d/ghcr-armada.yaml \
   /etc/containers/registries.d/ghcr-armada.yaml.backup 2>/dev/null || true
 sudo tee -a /etc/containers/registries.d/ghcr-armada.yaml >/dev/null <<'EOF'
-  ghcr.io/andrewmccament/darkmada:
+  ghcr.io/nullocean/darkmada:
     use-sigstore-attachments: true
 EOF
 ```
@@ -253,9 +256,9 @@ Verify the bootstrap files before switching:
 
 ```bash
 sudo test -f /etc/pki/containers/darkmada.pub && echo key-present
-sudo jq '.transports.docker["ghcr.io/andrewmccament/darkmada"]' \
+sudo jq '.transports.docker["ghcr.io/nullocean/darkmada"]' \
   /etc/containers/policy.json
-sudo grep -A1 'ghcr.io/andrewmccament/darkmada' \
+sudo grep -A1 'ghcr.io/nullocean/darkmada' \
   /etc/containers/registries.d/ghcr-armada.yaml
 ```
 
@@ -283,7 +286,7 @@ The first switch should be staged and inspected before rebooting:
 ssh armada@<odin-ip> 'df -h / /var; sudo bootc status'
 ssh -t armada@<odin-ip> \
   'sudo bootc switch --enforce-container-sigpolicy \
-   ghcr.io/andrewmccament/darkmada:odin'
+   ghcr.io/nullocean/darkmada:odin'
 ssh -t armada@<odin-ip> 'sudo bootc status'
 ```
 
@@ -294,7 +297,7 @@ Then switch the bootc origin to the personal tag:
 
 ```bash
 sudo bootc switch --enforce-container-sigpolicy \
-  ghcr.io/andrewmccament/darkmada:odin
+  ghcr.io/nullocean/darkmada:odin
 ```
 
 Inspect the staged deployment before rebooting:
@@ -328,7 +331,7 @@ Test both Gaming Mode and Desktop Mode before considering the deployment good.
 ## Updating later builds
 
 When a new signed image is published to the same `odin` tag, update an Odin
-that is already running `ghcr.io/andrewmccament/darkmada:odin` with this routine:
+that is already running `ghcr.io/nullocean/darkmada:odin` with this routine:
 
 ```bash
 sudo bootc upgrade
@@ -424,7 +427,7 @@ deployment available for rollback.
 The local equivalent is:
 
 ```bash
-just build-armada-image ghcr.io/andrewmccament/darkmada odin
+just build-armada-image ghcr.io/nullocean/darkmada odin
 ```
 
 That recipe requires a Linux environment with privileged containers and loop
