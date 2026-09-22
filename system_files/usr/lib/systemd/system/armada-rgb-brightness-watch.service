@@ -1,0 +1,15 @@
+[Unit]
+Description=Watch display brightness for Armada RGB smart brightness
+ConditionPathExists=/etc/armada/rgb.json
+Requires=armada-rgb.service
+After=armada-rgb.service
+Before=display-manager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/armada-rgb watch
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
