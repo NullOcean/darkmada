@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 from .privileged import call
+from .proc import clean_env
 
 
 OS_VERSION_PATH = Path("/usr/lib/armada/version")
@@ -31,6 +32,7 @@ def run_cmd(cmd, timeout=5, capture=True):
             stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=timeout,
+            env=clean_env(),
         )
     except (OSError, subprocess.SubprocessError):
         return None
