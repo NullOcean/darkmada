@@ -1,8 +1,9 @@
 //! Command line interface for RGB lighting.
 
 use anyhow::Result;
-use armada_rgb::{ColorCorrection, Controller, LightingConfig};
+use armada_rgb::{watch_brightness, ColorCorrection, Controller, LightingConfig};
 use clap::{Parser, Subcommand};
+use std::time::Duration;
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -40,6 +41,12 @@ enum Command {
     Off,
     /// Apply the saved configuration.
     Apply,
+    /// Watch display brightness and reapply linked RGB brightness when it changes.
+    Watch {
+        /// Polling interval in milliseconds.
+        #[arg(long, default_value_t = 500)]
+        interval_ms: u64,
+    },
 }
 
 fn main() -> Result<()> {
@@ -87,6 +94,14 @@ fn main() -> Result<()> {
         Command::Apply => {
             if let Some(reason) = controller.apply()? {
                 eprintln!("RGB unsupported: {reason}");
+            }
+        }
+        Command::Watch { interval_ms } => {
+            if interval_ms == 0 {
+                anyhow::bail!("watch polling interval must be greater than zero");
+            }
+            if controller.is_supported() {
+                watch_brightness(&controller, Duration::from_millis(interval_ms))?;
             }
         }
     }
