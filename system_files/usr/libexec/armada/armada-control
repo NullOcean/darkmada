@@ -486,7 +486,14 @@ def rgb_supported():
 
 
 def run_rgb(command):
-    output = subprocess.check_output([RGB_TOOL, *command], text=True, timeout=5)
+    environment = os.environ.copy()
+    try:
+        environment.update(device_env())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    output = subprocess.check_output(
+        [RGB_TOOL, *command], text=True, timeout=5, env=environment
+    )
     config = json.loads(output)
     if not isinstance(config, dict):
         raise RuntimeError("invalid armada-rgb response")
@@ -506,10 +513,17 @@ def action_set_rgb(request):
     enabled = request.get("enabled")
     if not isinstance(enabled, bool):
         raise ValueError("invalid RGB enabled state")
-    link_brightness = request.get("linkBrightness")
+    # Keep the legacy off payload working while callers migrate to the full
+    # RGB settings payload.
+    if not enabled and not any(
+        key in request for key in ("linkBrightness", "color", "maxBrightness", "brightness")
+    ):
+        return run_rgb(["off"])
+
+    link_brightness = request.get("linkBrightness", False)
     color = request.get("color")
     brightness = request.get("brightness")
-    max_brightness = request.get("maxBrightness")
+    max_brightness = request.get("maxBrightness", 100)
     if not isinstance(link_brightness, bool):
         raise ValueError("invalid RGB screen-link state")
     valid_max_brightness = (

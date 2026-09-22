@@ -201,6 +201,8 @@ export const en = {
   "rgb.loadError": "Could not load RGB lighting",
   "rgb.changeError": "Could not change RGB lighting",
   "rgb.title": "RGB Lighting",
+  "rgb.smartBrightness": "Smart Brightness",
+  "rgb.maxBrightness": "Max Brightness",
   "common.enabled": "Enabled",
   "common.brightness": "Brightness",
   "common.color": "Color",

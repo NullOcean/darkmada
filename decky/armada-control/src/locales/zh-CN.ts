@@ -203,6 +203,8 @@ export const zhCN = {
   "rgb.loadError": "无法读取 RGB 灯光设置",
   "rgb.changeError": "无法更改 RGB 灯光设置",
   "rgb.title": "RGB 灯光",
+  "rgb.smartBrightness": "智能亮度",
+  "rgb.maxBrightness": "最大亮度",
   "common.enabled": "启用",
   "common.brightness": "亮度",
   "common.color": "颜色",
