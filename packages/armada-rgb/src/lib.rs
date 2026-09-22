@@ -4,6 +4,8 @@ mod backend;
 mod config;
 mod controller;
 mod correction;
+#[path = "helpers/display-brightness.helper.rs"]
+mod display_brightness_helper;
 mod runtime;
 mod state;
 
