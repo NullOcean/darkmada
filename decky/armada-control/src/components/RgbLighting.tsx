@@ -98,12 +98,18 @@ export function RgbLighting() {
       <ToggleRow
         label={t("rgb.smartBrightness")}
         value={config.linkBrightness}
-        onChange={(linkBrightness: boolean) => setConfig({ ...config, linkBrightness })}
+        onChange={(linkBrightness: boolean) => setConfig({
+          ...config,
+          linkBrightness,
+          maxBrightness: linkBrightness
+            ? Math.max(1, config.maxBrightness)
+            : config.maxBrightness,
+        })}
       />
       <SliderEdit
         label={config.linkBrightness ? t("rgb.maxBrightness") : t("common.brightness")}
         value={config.linkBrightness ? config.maxBrightness : config.brightness}
-        min={0}
+        min={config.linkBrightness ? 1 : 0}
         max={100}
         step={1}
         disabled={!config.enabled}

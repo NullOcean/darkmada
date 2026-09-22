@@ -529,10 +529,21 @@ def action_set_rgb(request):
     valid_max_brightness = (
         isinstance(max_brightness, int)
         and not isinstance(max_brightness, bool)
-        and 0 <= max_brightness <= 100
+        and (
+            1 <= max_brightness <= 100
+            if link_brightness
+            else 0 <= max_brightness <= 100
+        )
     )
     if not valid_max_brightness:
-        raise ValueError("invalid RGB maximum brightness")
+        raise ValueError(
+            "invalid RGB maximum brightness"
+            + (
+                " (must be between 1 and 100 when screen linking is enabled)"
+                if link_brightness
+                else ""
+            )
+        )
     valid_color = (
         isinstance(color, str)
         and len(color) == 6

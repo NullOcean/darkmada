@@ -20,7 +20,7 @@ pub struct LightingConfig {
 }
 
 fn default_max_brightness() -> u8 {
-    25
+    50
 }
 
 impl Default for LightingConfig {
@@ -45,7 +45,11 @@ impl LightingConfig {
         if self.brightness > 100 {
             bail!("brightness must be between 0 and 100");
         }
-        if self.max_brightness > 100 {
+        if self.link_brightness {
+            if self.max_brightness == 0 || self.max_brightness > 100 {
+                bail!("maxBrightness must be between 1 and 100 when screen linking is enabled");
+            }
+        } else if self.max_brightness > 100 {
             bail!("maxBrightness must be between 0 and 100");
         }
         if self.color.len() != 6 || !self.color.bytes().all(|c| c.is_ascii_hexdigit()) {
@@ -106,6 +110,13 @@ mod tests {
             ..LightingConfig::default()
         };
         assert!(max_brightness.validate().is_err());
+
+        let linked_without_ceiling: LightingConfig = LightingConfig {
+            link_brightness: true,
+            max_brightness: 0,
+            ..LightingConfig::default()
+        };
+        assert!(linked_without_ceiling.validate().is_err());
 
         let version: LightingConfig = LightingConfig {
             version: 2,
