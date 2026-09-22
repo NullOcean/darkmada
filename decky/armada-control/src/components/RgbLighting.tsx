@@ -75,7 +75,7 @@ export function RgbLighting() {
     const timer: number = window.setTimeout(async () => {
       lastUpdate.current = Date.now();
       try {
-        await setRgb(config.enabled, config.color, config.brightness);
+        await setRgb(config.enabled, config.linkBrightness, config.color, config.maxBrightness, config.brightness);
         savedConfig.current = current;
       } catch (error) {
         toaster.toast({ title: t("rgb.changeError"), body: String(error) });
@@ -95,14 +95,22 @@ export function RgbLighting() {
         value={config.enabled}
         onChange={(enabled: boolean) => setConfig({ ...config, enabled })}
       />
+      <ToggleRow
+        label={t("rgb.smartBrightness")}
+        value={config.linkBrightness}
+        onChange={(linkBrightness: boolean) => setConfig({ ...config, linkBrightness })}
+      />
       <SliderEdit
-        label={t("common.brightness")}
-        value={config.brightness}
+        label={config.linkBrightness ? t("rgb.maxBrightness") : t("common.brightness")}
+        value={config.linkBrightness ? config.maxBrightness : config.brightness}
         min={0}
         max={100}
         step={1}
         disabled={!config.enabled}
-        onChange={(brightness: number) => setConfig({ ...config, brightness })}
+        onChange={(brightness: number) => setConfig(
+          config.linkBrightness ?
+            { ...config, maxBrightness: brightness } :
+            { ...config, brightness })}
       />
       <SliderEdit
         label={t("common.color")}

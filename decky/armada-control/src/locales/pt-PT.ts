@@ -203,6 +203,8 @@ export const ptPT = {
   "rgb.loadError": "Não foi possível iniciar a iluminação RGB",
   "rgb.changeError": "Não foi possível alterar a iluminação RGB",
   "rgb.title": "Iluminação RGB",
+  "rgb.smartBrightness": "Brilho inteligente",
+  "rgb.maxBrightness": "Brilho máximo",
   "common.enabled": "Ativado",
   "common.brightness": "Brilho",
   "common.color": "Cor",

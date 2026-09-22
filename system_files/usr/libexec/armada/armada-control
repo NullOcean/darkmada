@@ -486,7 +486,14 @@ def rgb_supported():
 
 
 def run_rgb(command):
-    output = subprocess.check_output([RGB_TOOL, *command], text=True, timeout=5)
+    environment = os.environ.copy()
+    try:
+        environment.update(device_env())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    output = subprocess.check_output(
+        [RGB_TOOL, *command], text=True, timeout=5, env=environment
+    )
     config = json.loads(output)
     if not isinstance(config, dict):
         raise RuntimeError("invalid armada-rgb response")
@@ -506,11 +513,26 @@ def action_set_rgb(request):
     enabled = request.get("enabled")
     if not isinstance(enabled, bool):
         raise ValueError("invalid RGB enabled state")
-    if not enabled:
+    # Keep the legacy off payload working while callers migrate to the full
+    # RGB settings payload.
+    if not enabled and not any(
+        key in request for key in ("linkBrightness", "color", "maxBrightness", "brightness")
+    ):
         return run_rgb(["off"])
 
+    link_brightness = request.get("linkBrightness", False)
     color = request.get("color")
     brightness = request.get("brightness")
+    max_brightness = request.get("maxBrightness", 100)
+    if not isinstance(link_brightness, bool):
+        raise ValueError("invalid RGB screen-link state")
+    valid_max_brightness = (
+        isinstance(max_brightness, int)
+        and not isinstance(max_brightness, bool)
+        and 0 <= max_brightness <= 100
+    )
+    if not valid_max_brightness:
+        raise ValueError("invalid RGB maximum brightness")
     valid_color = (
         isinstance(color, str)
         and len(color) == 6
@@ -526,7 +548,19 @@ def action_set_rgb(request):
     if not valid_brightness:
         raise ValueError("invalid RGB brightness")
 
-    command = ["set", "--color", color, "--brightness", str(brightness)]
+    command = [
+        "set",
+        "--enabled",
+        str(enabled).lower(),
+        "--link-brightness",
+        str(link_brightness).lower(),
+        "--max-brightness",
+        str(max_brightness),
+        "--color",
+        color,
+        "--brightness",
+        str(brightness),
+    ]
     return run_rgb(command)
 
 

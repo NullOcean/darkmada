@@ -20,14 +20,17 @@ control = importlib.util.module_from_spec(spec)
 loader.exec_module(control)
 
 commands = []
+rgb_environments = []
 supported = False
 
 
 def check_output(command, **kwargs):
     commands.append(command)
+    if command and command[0] == control.RGB_TOOL:
+        rgb_environments.append(kwargs.get("env", {}))
     if command[-1] == "get":
-        return '{"version":1,"enabled":false,"brightness":25,"color":"FFFFFF"}'
-    return '{"version":1,"enabled":true,"brightness":40,"color":"A1B2C3"}'
+        return '{"version":1,"enabled":false,"linkBrightness":false,"brightness":25,"maxBrightness":25,"color":"FFFFFF"}'
+    return '{"version":1,"enabled":true,"linkBrightness":true,"brightness":40,"maxBrightness":60,"color":"A1B2C3"}'
 
 
 def run(command, **kwargs):
@@ -45,11 +48,43 @@ state = control.action_get_rgb({})
 assert state["color"] == "FFFFFF"
 assert commands.pop() == [control.RGB_TOOL, "get"]
 
+control.device_env = lambda: {"ARMADA_PRIMARY_BACKLIGHT": "panel0"}
+state = control.action_set_rgb({
+    "enabled": True,
+    "linkBrightness": True,
+    "color": "a1b2c3",
+    "maxBrightness": 60,
+    "brightness": 40,
+})
+assert state["color"] == "A1B2C3"
+assert rgb_environments[-1]["ARMADA_PRIMARY_BACKLIGHT"] == "panel0"
+assert commands.pop() == [
+    control.RGB_TOOL,
+    "set",
+    "--enabled",
+    "true",
+    "--link-brightness",
+    "true",
+    "--max-brightness",
+    "60",
+    "--color",
+    "a1b2c3",
+    "--brightness",
+    "40",
+]
+
+# Preserve the old payload shape while callers migrate.
 state = control.action_set_rgb({"enabled": True, "color": "a1b2c3", "brightness": 40})
 assert state["color"] == "A1B2C3"
 assert commands.pop() == [
     control.RGB_TOOL,
     "set",
+    "--enabled",
+    "true",
+    "--link-brightness",
+    "false",
+    "--max-brightness",
+    "100",
     "--color",
     "a1b2c3",
     "--brightness",
@@ -82,17 +117,30 @@ assert rgb.rgb_supported()
 assert calls.pop() == ("get_rgb", {})
 assert rgb.get_rgb() == {}
 assert calls.pop() == ("get_rgb", {})
-rgb.set_rgb(True, "112233", 50)
+rgb.set_rgb(True, False, "112233", 100, 50)
 assert calls.pop() == (
     "set_rgb",
-    {"enabled": True, "color": "112233", "brightness": 50},
+    {
+        "enabled": True,
+        "linkBrightness": False,
+        "color": "112233",
+        "maxBrightness": 100,
+        "brightness": 50,
+    },
 )
 PYEOF
 
 ! rg -q 'ARMADA_RGB_' "$ROOT/system_files/usr/lib/armada/devices"
 ! rg -q 'ARMADA_RGB_' "$ROOT/system_files/usr/libexec/armada/device-env"
 grep -Fq 'ConditionPathExists=/etc/armada/rgb.json' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb.service"
-grep -Fq 'ExecStart=/usr/bin/armada-rgb apply' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb.service"
+grep -Fq 'ExecStart=/usr/libexec/armada/armada-rgb-env apply' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb.service"
 grep -Fq 'systemctl enable armada-rgb.service' "$ROOT/build_files/40-vendor-system-files.sh"
 
+grep -Fq 'ConditionPathExists=/etc/armada/rgb.json' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb-brightness-watch.service"
+grep -Fq 'Wants=armada-rgb.service' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb-brightness-watch.service"
+! grep -Fq 'Requires=armada-rgb.service' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb-brightness-watch.service"
+grep -Fq 'ExecStart=/usr/libexec/armada/armada-rgb-env watch' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb-brightness-watch.service"
+grep -Fq 'PathExists=/etc/armada/rgb.json' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb-brightness-watch.path"
+grep -Fq 'Unit=armada-rgb-brightness-watch.service' "$ROOT/system_files/usr/lib/systemd/system/armada-rgb-brightness-watch.path"
+grep -Fq 'systemctl enable armada-rgb-brightness-watch.path' "$ROOT/build_files/40-vendor-system-files.sh"
 printf 'Armada Control RGB tests passed\n'
