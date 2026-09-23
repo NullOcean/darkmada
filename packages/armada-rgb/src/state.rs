@@ -55,6 +55,9 @@ impl LightingConfig {
         if self.color.len() != 6 || !self.color.bytes().all(|c| c.is_ascii_hexdigit()) {
             bail!("color must be six hexadecimal RGB digits");
         }
+        if (self.saturation < 0) || (self.saturation > 100) {
+            bail!("saturation must be between 0 and 100");
+        }
         if let Some(correction) = &self.correction {
             correction.validate()?;
         }
