@@ -6,6 +6,8 @@ mod controller;
 mod correction;
 #[path = "helpers/display-brightness.helper.rs"]
 mod display_brightness_helper;
+#[path = "helpers/rgb-saturation.helper.rs"]
+mod rgb_saturation_helper;
 mod runtime;
 mod state;
 mod watcher;

@@ -113,6 +113,7 @@ fn enabled(color: &str, brightness: u8) -> LightingConfig {
         brightness,
         max_brightness: 25,
         color: color.into(),
+        saturation: 100,
         correction: None,
     }
 }
@@ -152,6 +153,94 @@ fn thor_bgr_targets_do_not_touch_other_leds() {
         assert_eq!(fixture.value(&target, "brightness"), "64");
     }
     assert_eq!(fixture.value("power-led", "brightness"), "unchanged");
+}
+
+#[test]
+fn saturation_is_applied_before_multicolor_output() {
+    let fixture: Fixture = Fixture::new();
+    fixture.target("rgb:l1", "blue green red", "255");
+
+    let output: std::process::Output = fixture
+        .command("multicolor", &["rgb:l1"], None)
+        .args([
+            "set",
+            "--color",
+            "FF0000",
+            "--saturation",
+            "50",
+            "--brightness",
+            "100",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(fixture.value("rgb:l1", "multi_intensity"), "55 55 255");
+    let config: LightingConfig = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(config.saturation, 50);
+}
+
+#[test]
+fn saturation_is_applied_before_hardware_correction() {
+    let fixture: Fixture = Fixture::new();
+    fixture.target("rgb:l1", "blue green red", "255");
+
+    let output: std::process::Output = fixture
+        .command("multicolor", &["rgb:l1"], Some("always:0,20,20"))
+        .args([
+            "set",
+            "--color",
+            "FF0000",
+            "--saturation",
+            "50",
+            "--brightness",
+            "100",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // 255, 128, 128 after saturation; 20% correction leaves 255, 102, 102.
+    assert_eq!(fixture.value("rgb:l1", "multi_intensity"), "34 34 255");
+}
+
+#[test]
+fn saturation_is_applied_before_channel_output() {
+    let fixture: Fixture = Fixture::new();
+    for target in ["l:r1", "l:g1", "l:b1"] {
+        fixture.channel_target(target, "255");
+    }
+
+    let output: std::process::Output = fixture
+        .command("channels", &["red=l:r1", "green=l:g1", "blue=l:b1"], None)
+        .args([
+            "set",
+            "--color",
+            "FF0000",
+            "--saturation",
+            "50",
+            "--brightness",
+            "100",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(fixture.value("l:r1", "brightness"), "255");
+    assert_eq!(fixture.value("l:g1", "brightness"), "55");
+    assert_eq!(fixture.value("l:b1", "brightness"), "55");
 }
 
 #[test]
@@ -377,10 +466,19 @@ fn cli_sets_gets_and_turns_off() {
             .unwrap()
     };
 
-    let output: std::process::Output = run(&["set", "--color", "aa00ff", "--brightness", "7"]);
+    let output: std::process::Output = run(&[
+        "set",
+        "--color",
+        "aa00ff",
+        "--saturation",
+        "50",
+        "--brightness",
+        "7",
+    ]);
     assert!(output.status.success());
     let config: LightingConfig = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(config.color, "AA00FF");
+    assert_eq!(config.saturation, 50);
     assert!(config.enabled);
 
     let output: std::process::Output = run(&["off"]);

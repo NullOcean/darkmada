@@ -29,8 +29,8 @@ def check_output(command, **kwargs):
     if command and command[0] == control.RGB_TOOL:
         rgb_environments.append(kwargs.get("env", {}))
     if command[-1] == "get":
-        return '{"version":1,"enabled":false,"linkBrightness":false,"brightness":25,"maxBrightness":25,"color":"FFFFFF"}'
-    return '{"version":1,"enabled":true,"linkBrightness":true,"brightness":40,"maxBrightness":60,"color":"A1B2C3"}'
+        return '{"version":1,"enabled":false,"linkBrightness":false,"brightness":25,"maxBrightness":25,"color":"FFFFFF","saturation":100}'
+    return '{"version":1,"enabled":true,"linkBrightness":true,"brightness":40,"maxBrightness":60,"color":"A1B2C3","saturation":50}'
 
 
 def run(command, **kwargs):
@@ -53,6 +53,7 @@ state = control.action_set_rgb({
     "enabled": True,
     "linkBrightness": True,
     "color": "a1b2c3",
+    "saturation": 50,
     "maxBrightness": 60,
     "brightness": 40,
 })
@@ -69,6 +70,8 @@ assert commands.pop() == [
     "60",
     "--color",
     "a1b2c3",
+    "--saturation",
+    "50",
     "--brightness",
     "40",
 ]
@@ -87,6 +90,8 @@ assert commands.pop() == [
     "100",
     "--color",
     "a1b2c3",
+    "--saturation",
+    "100",
     "--brightness",
     "40",
 ]
@@ -97,6 +102,7 @@ assert commands.pop() == [control.RGB_TOOL, "off"]
 for request in (
     {"enabled": True, "color": "12345", "brightness": 40},
     {"enabled": True, "color": "FFFFFF", "brightness": 101},
+    {"enabled": True, "color": "FFFFFF", "saturation": 101, "brightness": 40},
 ):
     try:
         control.action_set_rgb(request)
@@ -117,13 +123,14 @@ assert rgb.rgb_supported()
 assert calls.pop() == ("get_rgb", {})
 assert rgb.get_rgb() == {}
 assert calls.pop() == ("get_rgb", {})
-rgb.set_rgb(True, False, "112233", 100, 50)
+rgb.set_rgb(True, False, "112233", 75, 100, 50)
 assert calls.pop() == (
     "set_rgb",
     {
         "enabled": True,
         "linkBrightness": False,
         "color": "112233",
+        "saturation": 75,
         "maxBrightness": 100,
         "brightness": 50,
     },

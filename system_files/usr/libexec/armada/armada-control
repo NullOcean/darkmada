@@ -516,16 +516,24 @@ def action_set_rgb(request):
     # Keep the legacy off payload working while callers migrate to the full
     # RGB settings payload.
     if not enabled and not any(
-        key in request for key in ("linkBrightness", "color", "maxBrightness", "brightness")
+        key in request for key in ("linkBrightness", "color", "saturation", "maxBrightness", "brightness")
     ):
         return run_rgb(["off"])
 
     link_brightness = request.get("linkBrightness", False)
     color = request.get("color")
+    saturation = request.get("saturation", 100)
     brightness = request.get("brightness")
     max_brightness = request.get("maxBrightness", 100)
     if not isinstance(link_brightness, bool):
         raise ValueError("invalid RGB screen-link state")
+    valid_saturation = (
+        isinstance(saturation, int)
+        and not isinstance(saturation, bool)
+        and 0 <= saturation <= 100
+    )
+    if not valid_saturation:
+        raise ValueError("invalid RGB saturation")
     valid_max_brightness = (
         isinstance(max_brightness, int)
         and not isinstance(max_brightness, bool)
@@ -569,6 +577,8 @@ def action_set_rgb(request):
         str(max_brightness),
         "--color",
         color,
+        "--saturation",
+        str(saturation),
         "--brightness",
         str(brightness),
     ]
