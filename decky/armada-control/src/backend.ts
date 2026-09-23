@@ -11,7 +11,7 @@ let compatAppliedSaveChain = Promise.resolve<unknown>(undefined);
 export const saveCompatApplied = (appids: string[], protonDefault: string | null = null) => {
   const snapshot = [...appids];
   const request = compatAppliedSaveChain
-    .catch(() => {})
+    .catch(() => { })
     .then(() => call<[string[], string | null], CompatAppliedState>("save_compat_applied", snapshot, protonDefault));
   compatAppliedSaveChain = request;
   return request;
@@ -30,8 +30,8 @@ export const reapplyPerf = () => call<[], { pids?: number }>("reapply_perf");
 export const restartGameMode = () => call<[], boolean>("restart_game_mode");
 export const setControllerType = (value: string) => call<[string], string>("set_controller_type", value);
 export const getRgb = () => call<[], RgbConfig | null>("get_rgb");
-export const setRgb = (enabled: boolean, linkBrightness: boolean, color: string, maxBrightness: number, brightness: number) =>
-  call<[boolean, boolean, string, number, number], RgbConfig>("set_rgb", enabled, linkBrightness, color, maxBrightness, brightness);
+export const setRgb = (enabled: boolean, linkBrightness: boolean, color: string, saturation: number, maxBrightness: number, brightness: number) =>
+  call<[boolean, boolean, string, number, number, number], RgbConfig>("set_rgb", enabled, linkBrightness, color, saturation, maxBrightness, brightness);
 export const getControllerState = () => call<[], CalibrationState>("get_controller_state");
 export const saveCalibration = (capture: Capture) => call<[Capture], CalibrationState>("save_calibration", capture);
 export const resetCalibration = () => call<[], CalibrationState>("reset_calibration");

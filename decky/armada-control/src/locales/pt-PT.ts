@@ -205,6 +205,7 @@ export const ptPT = {
   "rgb.title": "Iluminação RGB",
   "rgb.smartBrightness": "Brilho inteligente",
   "rgb.maxBrightness": "Brilho máximo",
+  "rgb.saturation": "Saturação",
   "common.enabled": "Ativado",
   "common.brightness": "Brilho",
   "common.color": "Cor",

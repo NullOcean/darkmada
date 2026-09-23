@@ -203,6 +203,7 @@ export const en = {
   "rgb.title": "RGB Lighting",
   "rgb.smartBrightness": "Smart Brightness",
   "rgb.maxBrightness": "Max Brightness",
+  "rgb.saturation": "Saturation",
   "common.enabled": "Enabled",
   "common.brightness": "Brightness",
   "common.color": "Color",

@@ -78,6 +78,7 @@ export interface RgbConfig {
   maxBrightness: number;
   brightness: number;
   color: string;
+  saturation: number;
 }
 
 export interface GameRef {
