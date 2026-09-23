@@ -1,6 +1,6 @@
 //! Hardware backends for RGB lighting.
 
-use crate::{ColorCorrection, LightingConfig, rgb_saturation_helper};
+use crate::{rgb_saturation_helper, ColorCorrection, LightingConfig};
 use anyhow::{bail, Context, Result};
 use std::collections::HashSet;
 use std::fs::{self, File, OpenOptions};

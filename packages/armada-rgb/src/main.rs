@@ -31,6 +31,9 @@ enum Command {
         max_brightness: Option<u8>,
         #[arg(long)]
         color: String,
+        /// Color saturation from 0 to 100.
+        #[arg(long, default_value_t = 100)]
+        saturation: u8,
         #[arg(long)]
         brightness: u8,
         /// RGB correction trigger and channel reductions.
@@ -68,6 +71,7 @@ fn main() -> Result<()> {
             link_brightness,
             max_brightness,
             color,
+            saturation,
             brightness,
             correction,
         } => {
@@ -80,6 +84,7 @@ fn main() -> Result<()> {
                 config.max_brightness = max_brightness;
             }
             config.color = color;
+            config.saturation = saturation;
             config.brightness = brightness;
             if let Some(correction) = correction {
                 config.correction = Some(correction);

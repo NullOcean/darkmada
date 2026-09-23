@@ -527,6 +527,13 @@ def action_set_rgb(request):
     max_brightness = request.get("maxBrightness", 100)
     if not isinstance(link_brightness, bool):
         raise ValueError("invalid RGB screen-link state")
+    valid_saturation = (
+        isinstance(saturation, int)
+        and not isinstance(saturation, bool)
+        and 0 <= saturation <= 100
+    )
+    if not valid_saturation:
+        raise ValueError("invalid RGB saturation")
     valid_max_brightness = (
         isinstance(max_brightness, int)
         and not isinstance(max_brightness, bool)

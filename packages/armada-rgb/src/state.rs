@@ -15,12 +15,18 @@ pub struct LightingConfig {
     #[serde(default = "default_max_brightness")]
     pub max_brightness: u8,
     pub color: String,
+    #[serde(default = "default_saturation")]
+    pub saturation: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub correction: Option<ColorCorrection>,
 }
 
 fn default_max_brightness() -> u8 {
     50
+}
+
+fn default_saturation() -> u8 {
+    100
 }
 
 impl Default for LightingConfig {
@@ -32,6 +38,7 @@ impl Default for LightingConfig {
             link_brightness: false,
             max_brightness: default_max_brightness(),
             color: "FFFFFF".into(),
+            saturation: default_saturation(),
             correction: None,
         }
     }
@@ -55,7 +62,7 @@ impl LightingConfig {
         if self.color.len() != 6 || !self.color.bytes().all(|c| c.is_ascii_hexdigit()) {
             bail!("color must be six hexadecimal RGB digits");
         }
-        if (self.saturation < 0) || (self.saturation > 100) {
+        if self.saturation > 100 {
             bail!("saturation must be between 0 and 100");
         }
         if let Some(correction) = &self.correction {
