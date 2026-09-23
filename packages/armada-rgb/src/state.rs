@@ -92,6 +92,7 @@ mod tests {
         )
         .unwrap();
         assert!(old_config.correction.is_none());
+        assert_eq!(old_config.saturation, 100);
 
         let config: LightingConfig = LightingConfig {
             color: "a1b2c3".into(),
@@ -100,6 +101,12 @@ mod tests {
         .validate()
         .unwrap();
         assert_eq!(config.color, "A1B2C3");
+
+        let saturation: LightingConfig = LightingConfig {
+            saturation: 50,
+            ..LightingConfig::default()
+        };
+        assert!(saturation.validate().is_ok());
 
         for color in ["fff", "GG0000", "0000000"] {
             let config: LightingConfig = LightingConfig {
@@ -114,6 +121,12 @@ mod tests {
             ..LightingConfig::default()
         };
         assert!(brightness.validate().is_err());
+
+        let saturation: LightingConfig = LightingConfig {
+            saturation: 101,
+            ..LightingConfig::default()
+        };
+        assert!(saturation.validate().is_err());
 
         let max_brightness: LightingConfig = LightingConfig {
             max_brightness: 101,

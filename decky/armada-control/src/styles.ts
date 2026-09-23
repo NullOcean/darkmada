@@ -58,7 +58,7 @@ export const styles = `
         --left-track-color: #0000;
         --colored-toggles-main-color: #0000;
         background: linear-gradient(90deg, rgba(255, 255, 255, 0),  rgba(255, 255, 255, 1));
-        border: 1px solid rgba(255, 255, 255, 0.2); # border needed since the gradient is fully transparent on the left side
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
       }
       .armada-control-tabs .armada-subheader {
         text-transform: uppercase;
