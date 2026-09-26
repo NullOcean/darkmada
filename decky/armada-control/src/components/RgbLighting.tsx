@@ -70,6 +70,11 @@ export function RgbLighting() {
     const current: string = JSON.stringify(config);
     if (current === savedConfig.current) return;
 
+    // toggle off smartBrightness when RGB is disabled 
+    if (!config.enabled) {
+      config.linkBrightness = false;
+    }
+
     const elapsed: number = Date.now() - lastUpdate.current;
     const delay: number = Math.max(0, UPDATE_INTERVAL_MS - elapsed);
     const timer: number = window.setTimeout(async () => {
@@ -105,6 +110,7 @@ export function RgbLighting() {
       <ToggleRow
         label={t("rgb.smartBrightness")}
         value={config.linkBrightness}
+        disabled={!config.enabled}
         onChange={(linkBrightness: boolean) => setConfig({
           ...config,
           linkBrightness,
