@@ -572,6 +572,15 @@ no equivalent submission was found, or a permanent URL to the upstream submissio
   source: armada
   upstream: local
   notes: Armada added this follow-up to limit `0612` to playback MI2S DAIs; without it, the ROCKNIX change would affect every playback DAI using the shared q6apm driver.
+- `patches/0528-ASoC-qcom-sc8280xp-suspend-the-card-and-its-streams.patch`
+  source: armada
+  upstream: local
+- `patches/0529-ASoC-qdsp6-q6apm-fail-the-graph-open-when-the-DSP-rejects-it.patch`
+  source: armada
+  upstream: local
+- `patches/0530-ASoC-qdsp6-release-AudioReach-graphs-across-system-suspend.patch`
+  source: armada
+  upstream: local
 - `patches/0618-drm-msm-dp-dont-fail-audio-prepare-when-display-off.patch`
   source: https://github.com/ROCKNIX/distribution/pull/3187
   upstream: unknown
