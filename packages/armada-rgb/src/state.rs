@@ -92,6 +92,8 @@ mod tests {
         )
         .unwrap();
         assert!(old_config.correction.is_none());
+        assert!(!old_config.link_brightness);
+        assert_eq!(old_config.max_brightness, 50);
         assert_eq!(old_config.saturation, 100);
 
         let config: LightingConfig = LightingConfig {

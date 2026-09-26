@@ -550,31 +550,21 @@ def action_set_rgb(request):
         for key in ("linkBrightness", "color", "saturation", "maxBrightness", "brightness")
     ):
         return run_rgb(["off"])
-    link_brightness = request.get("linkBrightness", False)
+    link_brightness = request.get("linkBrightness")
     color = request.get("color")
     saturation = request.get("saturation")
     brightness = request.get("brightness")
-    max_brightness = request.get("maxBrightness", 100)
-    if not isinstance(link_brightness, bool):
+    max_brightness = request.get("maxBrightness")
+    if link_brightness is not None and not isinstance(link_brightness, bool):
         raise ValueError("invalid RGB screen-link state")
-    valid_max_brightness = (
-        isinstance(max_brightness, int)
-        and not isinstance(max_brightness, bool)
-        and (
-            1 <= max_brightness <= 100
-            if link_brightness
-            else 0 <= max_brightness <= 100
+    if max_brightness is not None:
+        valid_max_brightness = (
+            isinstance(max_brightness, int)
+            and not isinstance(max_brightness, bool)
+            and 0 <= max_brightness <= 100
         )
-    )
-    if not valid_max_brightness:
-        raise ValueError(
-            "invalid RGB maximum brightness"
-            + (
-                " (must be between 1 and 100 when screen linking is enabled)"
-                if link_brightness
-                else ""
-            )
-        )
+        if not valid_max_brightness:
+            raise ValueError("invalid RGB maximum brightness")
     valid_color = (
         isinstance(color, str)
         and len(color) == 6
@@ -602,13 +592,12 @@ def action_set_rgb(request):
         "set",
         "--enabled",
         str(enabled).lower(),
-        "--link-brightness",
-        str(link_brightness).lower(),
-        "--max-brightness",
-        str(max_brightness),
-        "--color",
-        color,
     ]
+    if link_brightness is not None:
+        command.extend(["--link-brightness", str(link_brightness).lower()])
+    if max_brightness is not None:
+        command.extend(["--max-brightness", str(max_brightness)])
+    command.extend(["--color", color])
     if saturation is not None:
         command.extend(["--saturation", str(saturation)])
     command.extend(["--brightness", str(brightness)])
