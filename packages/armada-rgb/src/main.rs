@@ -109,7 +109,8 @@ fn main() -> Result<()> {
             if interval_ms == 0 {
                 anyhow::bail!("watch polling interval must be greater than zero");
             }
-            if controller.is_supported() {
+            let config = controller.get()?;
+            if controller.is_supported() && config.enabled && config.link_brightness {
                 watch_brightness(&controller, Duration::from_millis(interval_ms))?;
             }
         }

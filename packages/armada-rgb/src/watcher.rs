@@ -11,6 +11,13 @@ pub fn watch_brightness(controller: &Controller, interval: Duration) -> Result<(
     let mut last_error: Option<String> = None;
 
     loop {
+        let config = controller.get()?;
+
+        // Exit the thread if RGB is disabled or linked brightness is not enabled, to avoid unnecessary polling.
+        if !config.enabled || !config.link_brightness {
+            return Ok(());
+        }
+
         match display_brightness::screen_brightness_percent() {
             Ok(brightness) => {
                 if let Some(result) = apply_if_changed(&mut previous_brightness, brightness, || {
