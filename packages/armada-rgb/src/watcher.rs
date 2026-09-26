@@ -1,6 +1,6 @@
 //! Poll display brightness and reapply linked RGB brightness on changes.
 
-use crate::{display_brightness_helper, Controller};
+use crate::{display_brightness, Controller};
 use anyhow::Result;
 use std::thread;
 use std::time::Duration;
@@ -11,7 +11,7 @@ pub fn watch_brightness(controller: &Controller, interval: Duration) -> Result<(
     let mut last_error: Option<String> = None;
 
     loop {
-        match display_brightness_helper::screen_brightness_percent() {
+        match display_brightness::screen_brightness_percent() {
             Ok(brightness) => {
                 if previous_brightness
                     .map(|previous| previous != brightness)
