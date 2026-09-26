@@ -4,10 +4,8 @@ mod backend;
 mod config;
 mod controller;
 mod correction;
-#[path = "helpers/display-brightness.helper.rs"]
-mod display_brightness_helper;
-#[path = "rgb-saturation.rs"]
-mod rgb_saturation_helper;
+mod display_brightness;
+mod rgb_saturation;
 mod runtime;
 mod state;
 mod watcher;

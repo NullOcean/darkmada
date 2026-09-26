@@ -1,4 +1,4 @@
-use crate::{config, display_brightness_helper, runtime, LightingBackend, LightingConfig};
+use crate::{config, display_brightness, runtime, LightingBackend, LightingConfig};
 use anyhow::Result;
 use std::path::PathBuf;
 
@@ -78,9 +78,9 @@ impl Controller {
     fn config_for_apply(config: &LightingConfig) -> Result<LightingConfig> {
         let mut applied_config: LightingConfig = config.clone();
         if config.enabled && config.link_brightness {
-            let screen_percent: u8 = display_brightness_helper::screen_brightness_percent()?;
+            let screen_percent: u8 = display_brightness::screen_brightness_percent()?;
             applied_config.brightness =
-                display_brightness_helper::linked_brightness(screen_percent, config.max_brightness);
+                display_brightness::linked_brightness(screen_percent, config.max_brightness);
         }
         Ok(applied_config)
     }
