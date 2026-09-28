@@ -2,7 +2,6 @@
 Description=Start Armada RGB brightness watcher when settings exist
 
 [Path]
-PathExists=/etc/armada/rgb.json
 PathChanged=/etc/armada/rgb.json
 Unit=armada-rgb-brightness-watch.service
 
