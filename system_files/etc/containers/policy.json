@@ -25,6 +25,24 @@
                     }
                 }
             ],
+            "ghcr.io/andrewmccament/darkmada": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPaths": ["/etc/pki/containers/darkmada.pub"],
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ],
+            "ghcr.io/nullocean/darkmada": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPaths": ["/etc/pki/containers/darkmada.pub"],
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ],
             "": [
                 {
                     "type": "insecureAcceptAnything"
