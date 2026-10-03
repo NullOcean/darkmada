@@ -25,8 +25,8 @@ from armada_store import catalog, postinstall
 for app in apps:
     install = app["install"]
     kind = install["type"]
-    assert kind in ("flatpak", "appimage", "deckyplugin", "system"), (app["id"], kind)
-    assert app["category"] in ("emulators", "applications", "plugins"), app["id"]
+    assert kind in ("flatpak", "appimage", "deckyplugin", "system", "script"), (app["id"], kind)
+    assert app["category"] in ("emulators", "applications", "plugins", "scripts"), app["id"]
     if kind == "flatpak":
         assert install.get("ref"), app["id"]
     if kind == "system":
@@ -36,6 +36,10 @@ for app in apps:
     if kind == "appimage":
         assert install.get("filename"), app["id"]
         assert "/" not in install["filename"], app["id"]
+    if kind == "script":
+        run = install.get("run", "")
+        assert run and not run.startswith("/"), app["id"]
+        assert ".." not in pathlib.PurePosixPath(run).parts, app["id"]
     if install.get("asset"):
         re.compile(install["asset"])
     # A tool that needs Steam closed must never be offered as a Steam shortcut.
@@ -51,6 +55,7 @@ for template in ("es-de/es_find_rules.xml", "es-de/es_systems.xml"):
     assert (store / "templates" / template).is_file(), template
 
 assert any(a.get("desktopOnly") for a in apps), "expected at least one desktop-only entry"
+assert any(a["install"]["type"] == "script" for a in apps), "expected at least one script entry"
 print("catalog: %d apps, %d appimage, %d flatpak" % (
     len(apps),
     sum(1 for a in apps if a["install"]["type"] == "appimage"),

@@ -17,6 +17,12 @@ install_plugin armada-control /packages/decky-dist
 install_plugin armada-store /packages/decky-store-dist
 chmod 0755 /usr/lib/decky-loader/armada-decky-sync
 
+# Store scripts execute as root, so keep them outside the user-writable Decky
+# checkout and copy only the reviewed image contents into a fixed path.
+install -d -m 0755 /usr/libexec/armada-store/scripts
+cp -a /ctx/decky/armada-store/scripts/. /usr/libexec/armada-store/scripts/
+find /usr/libexec/armada-store/scripts -type f -exec chmod 0755 {} +
+
 decky_release="$(
     curl --retry 12 --retry-delay 10 -fsSL \
         https://api.github.com/repos/SteamDeckHomebrew/decky-loader/releases |
