@@ -373,6 +373,9 @@ no equivalent submission was found, or a permanent URL to the upstream submissio
 - `patches/1020-wifi-ath12k-send-the-computed-scan-priority-to-the-f.patch`
   source: https://github.com/ROCKNIX/distribution/blob/10b09e8df73b2b07ff04a243ded7425e41cd67fa/projects/ROCKNIX/devices/SM8550/patches/linux/1020-wifi-ath12k-send-the-computed-scan-priority-to-the-f.patch
   upstream: unknown
+- `patches/1021-wifi-ath12k-convert-scan-timeout-to-wiphy-delayed-work.patch`
+  source: https://lkml.iu.edu/2609.1/17957.html
+  upstream: https://lkml.iu.edu/2609.1/17957.html
 - `patches/0500-ROCKNIX-set-boot-fanspeed.patch`
   source: https://github.com/ROCKNIX/distribution/blob/bcf3b5bc574990b96543484575b06f912153a715/projects/ROCKNIX/devices/SM8550/patches/linux/0500-ROCKNIX-set-boot-fanspeed.patch
   upstream: unknown
@@ -735,3 +738,6 @@ no equivalent submission was found, or a permanent URL to the upstream submissio
   source: https://github.com/bylaws/linux/commit/7ae989a43ae7e3cb8007ac21c28dacc24c9d8320
   upstream: unknown
   notes: Rebased patch context for Linux 7.2.3 and Armada's compat-input patch; the unaligned-atomic handler is unchanged.
+- `patches/0505a-arm64-unaligned-atomics-cover-the-load128-store-exclusive.patch`
+  source: armada
+  upstream: local
