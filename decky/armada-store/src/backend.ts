@@ -6,6 +6,7 @@ export const getStatus = () => call<[], Status>("get_status");
 export const checkUpdates = (force = false) =>
   call<[boolean], Record<string, { latest: string }>>("check_updates", force);
 export const installApp = (appId: string) => call<[string], Job>("install_app", appId);
+export const runScript = (appId: string) => call<[string], Job>("run_script", appId);
 export const uninstallApp = (appId: string) => call<[string], Job>("uninstall_app", appId);
 export const replaceApp = (appId: string) => call<[string], Job>("replace_app", appId);
 export const cancelJob = (appId: string) => call<[string], boolean>("cancel_job", appId);

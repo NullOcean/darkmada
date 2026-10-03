@@ -25,6 +25,9 @@ class Plugin:
     async def install_app(self, app_id):
         return await asyncio.to_thread(jobs.start, app_id, "install")
 
+    async def run_script(self, app_id):
+        return await asyncio.to_thread(jobs.start, app_id, "run")
+
     async def uninstall_app(self, app_id):
         return await asyncio.to_thread(jobs.start, app_id, "uninstall")
 

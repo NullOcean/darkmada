@@ -1,17 +1,19 @@
 import { FileSelectionType, openFilePicker, toaster } from "@decky/api";
-import { ButtonItem, Menu, MenuItem, PanelSection, PanelSectionRow, showContextMenu } from "@decky/ui";
+import { ButtonItem, PanelSection, PanelSectionRow, showContextMenu } from "@decky/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import * as backend from "./backend";
+import { AppMenu } from "./components/AppMenu";
 import { AppRow, TERMINAL_PHASES } from "./components/AppRow";
 import { categoryIcons } from "./icons";
-import { addToSteam, launchShortcut, removeFromSteam } from "./lib/shortcuts";
+import { addAppToSteam } from "./lib/appActions";
+import { addToSteam, removeFromSteam } from "./lib/shortcuts";
 import { styles } from "./styles";
 import type { Catalog, CatalogApp, Job, Status } from "./types";
 
 const SECTIONS = [
   { key: "emulators", title: "Emulators" },
   { key: "applications", title: "Applications" },
+  { key: "scripts", title: "Scripts" },
   { key: "plugins", title: "Decky Plugins" },
 ];
 
@@ -96,7 +98,7 @@ export function Content() {
       } else if (job.phase === "done") {
         if (job.action !== "uninstall") {
           installFinished = true;
-          toast(app.name, "Installed");
+          toast(app.name, job.action === "run" ? "Completed" : "Installed");
         } else {
           toast(app.name, "Uninstalled");
         }
@@ -128,11 +130,6 @@ export function Content() {
       })
       .catch((error) => toast("Armada Store", String(error)));
   }, [refreshStatus, toast]);
-
-  const addToSteamFlow = async (app: CatalogApp) => {
-    const appid = await addToSteam(app.launch);
-    await backend.recordShortcut(app.id, appid);
-  };
 
   // A replacement queues while its old shortcut still exists. Dropping that one
   // is its own phase so a failure retries, leaving the queued add in place.
@@ -167,125 +164,22 @@ export function Content() {
       }
       if (autoAddAttempted.has(app.id)) continue;
       autoAddAttempted.add(app.id);
-      run(addToSteamFlow(app), () => toast(app.name, "Added to Steam"));
+      run(addAppToSteam(app), () => toast(app.name, "Added to Steam"));
     }
   }, [status, catalog]);
 
-  const removeFromSteamFlow = async (app: CatalogApp, appid: number) => {
-    removeFromSteam(appid);
-    await backend.clearShortcutRecord(app.id);
-  };
-
-  // Best-effort shortcut removal: on failure the record survives, so the menu
-  // keeps offering "Remove from Steam" even after the app itself is gone.
-  const uninstallFlow = async (app: CatalogApp, shortcut: number | undefined) => {
-    if (shortcut != null) {
-      try {
-        removeFromSteam(shortcut);
-        await backend.clearShortcutRecord(app.id);
-      } catch (error) {
-      }
-    }
-    await backend.uninstallApp(app.id);
-  };
-
   const openMenu = (app: CatalogApp) => {
-    const job = jobs.get(app.id) || null;
-    const active = !!job && !TERMINAL_PHASES.includes(job.phase);
-    const installed = !!status?.installed?.[app.id]?.installed;
-    const conflicts = status?.installed?.[app.id]?.conflicts || [];
-    const shortcut = status?.shortcuts?.[app.id];
-    const items: ReactNode[] = [];
-    if (active) {
-      items.push(<MenuItem key="cancel" onSelected={() => run(backend.cancelJob(app.id))}>Cancel</MenuItem>);
-    } else {
-      if (job?.phase === "error") {
-        items.push(<MenuItem key="dismiss" onSelected={() => run(backend.dismissJob(app.id))}>Dismiss error</MenuItem>);
-      }
-      // A desktop-only tool must not be launched from game mode even if an
-      // older install left a Steam shortcut behind.
-      const launchable = installed && !app.desktopOnly;
-      if (shortcut != null && launchable) {
-        items.push(
-          <MenuItem
-            key="play"
-            onSelected={() => {
-              try {
-                launchShortcut(shortcut);
-              } catch (error) {
-                toast("Armada Store", String(error));
-              }
-            }}
-          >
-            Launch
-          </MenuItem>,
-        );
-      }
-      if (shortcut == null && app.launch && launchable) {
-        items.push(
-          <MenuItem key="add-steam" onSelected={() => run(addToSteamFlow(app), () => toast(app.name, "Added to Steam"))}>
-            Add to Steam
-          </MenuItem>,
-        );
-      }
-      const update = installed ? updates[app.id] : undefined;
-      if (conflicts.length) {
-        // Installing alongside would leave two copies and two shortcuts, so
-        // this replaces the Install action rather than sitting next to it.
-        const kind = conflicts[0].type === "appimage" ? "AppImage" : "Flatpak";
-        items.push(
-          <MenuItem key="replace" onSelected={() => run(backend.replaceApp(app.id))}>
-            {`Replace ${kind} version`}
-          </MenuItem>,
-        );
-      } else if (!installed || update) {
-        // Not the resolved tag: half of them are "nightly" or a commit hash,
-        // and no version is shown to compare against anyway.
-        items.push(
-          <MenuItem key="install" onSelected={() => run(backend.installApp(app.id))}>
-            {installed ? "Update to latest" : "Install"}
-          </MenuItem>,
-        );
-      }
-      if (app.desktopOnly && installed) {
-        items.push(
-          <MenuItem key="desktop" onSelected={() => run(backend.switchToDesktop())}>
-            Switch to Desktop
-          </MenuItem>,
-        );
-      }
-      if (shortcut != null) {
-        // Offered whenever a shortcut record exists, even after uninstall,
-        // so a stranded shortcut can always be cleaned up.
-        items.push(
-          <MenuItem
-            key="remove-steam"
-            onSelected={() => run(removeFromSteamFlow(app, shortcut), () => toast(app.name, "Removed from Steam"))}
-          >
-            Remove from Steam
-          </MenuItem>,
-        );
-      }
-      if (installed && app.hasConfig) {
-        items.push(
-          <MenuItem
-            key="reset-config"
-            tone="destructive"
-            onSelected={() => run(backend.resetConfig(app.id), () => toast(app.name, "Configuration reset, previous kept as .bak"))}
-          >
-            Reset Configuration
-          </MenuItem>,
-        );
-      }
-      if (installed && app.installType !== "system") {
-        items.push(
-          <MenuItem key="uninstall" tone="destructive" onSelected={() => run(uninstallFlow(app, shortcut))}>
-            Uninstall
-          </MenuItem>,
-        );
-      }
-    }
-    showContextMenu(<Menu label={app.name}>{items}</Menu>);
+    showContextMenu(
+      <AppMenu
+        app={app}
+        job={jobs.get(app.id) || null}
+        info={status?.installed?.[app.id] || null}
+        shortcut={status?.shortcuts?.[app.id]}
+        updateAvailable={updates[app.id] != null}
+        run={run}
+        toast={toast}
+      />,
+    );
   };
 
   // Steam's own "Add a Non-Steam Game" browse button does nothing on the ARM

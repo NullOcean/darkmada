@@ -403,6 +403,17 @@
         "releases": "https://api.github.com/repos/justradical/decky-optiscaler-arm64ec/releases/394141296",
         "asset": "^OptiScaler\\.zip$"
       }
+    },
+    {
+      "id": "tailscale",
+      "name": "Tailscale",
+      "summary": "Enables Tailscale VPN for Armada",
+      "category": "scripts",
+      "icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSO-ZKZH48NM0w2Jy73pwVaQ64aFe2cXRELRWqH6CO3Ejjd35T_f6RfQ_WI&s=10",
+      "install": {
+        "type": "script",
+        "run": "setup-tailscale.sh"
+      }
     }
   ]
 }
