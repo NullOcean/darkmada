@@ -49,7 +49,7 @@ jobs:
           matrix='[]'
           args=""
           # The package set is the directories themselves, so it cannot drift
-          # from the tree. Only the two cross-compiled ones need a non-arm runner.
+          # from the tree. Only the cross-compiled ones need a non-arm runner.
           for dir in packages/*/; do
             pkg="$(basename "${dir}")"
             [ -f "${dir}/build.sh" ] || continue
@@ -58,8 +58,8 @@ jobs:
             upstream_ref="${upstream_repo}/${pkg}:${hash}"
 
             case "${pkg}" in
-              mesa-android|mesa-x86) runner=ubuntu-24.04 ;;
-              *)                     runner=ubuntu-24.04-arm ;;
+              mesa-android|lepton|mesa-x86) runner=ubuntu-24.04 ;;
+              *)                            runner=ubuntu-24.04-arm ;;
             esac
 
             if skopeo inspect --raw "docker://${fork_ref}" >/dev/null 2>&1; then
