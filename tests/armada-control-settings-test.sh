@@ -45,7 +45,7 @@ class Result:
         self.returncode = returncode
 
 
-unit_state = {"enabled": False, "game_mode": True}
+unit_state = {"enabled": False, "game_mode": True, "nested_desktop": False}
 systemctl_calls = []
 
 
@@ -53,6 +53,8 @@ def fake_session_systemctl(*args, check=True, timeout=30):
     systemctl_calls.append(args)
     if args[:2] == ("is-enabled", "--quiet"):
         return Result(0 if unit_state["enabled"] else 1)
+    if args[:3] == ("is-active", "--quiet", control.NESTED_DESKTOP_UNITS):
+        return Result(0 if unit_state["nested_desktop"] else 4)
     if args[:2] == ("is-active", "--quiet"):
         return Result(0 if unit_state["game_mode"] else 3)
     if args[0] == "enable":
@@ -74,6 +76,13 @@ assert ("enable", control.BOTTOM_SCREEN_SERVICE) in systemctl_calls
 assert ("start", control.BOTTOM_SCREEN_SERVICE) in systemctl_calls
 assert control.action_set_bottom_screen_enabled({"enabled": False}) == {"enabled": False}
 assert ("disable", "--now", control.BOTTOM_SCREEN_SERVICE) in systemctl_calls
+
+unit_state["nested_desktop"] = True
+systemctl_calls.clear()
+assert control.action_set_bottom_screen_enabled({"enabled": True}) == {"enabled": True}
+assert ("start", control.BOTTOM_SCREEN_SERVICE) not in systemctl_calls
+control.action_set_bottom_screen_enabled({"enabled": False})
+unit_state["nested_desktop"] = False
 
 unit_state["game_mode"] = False
 systemctl_calls.clear()
