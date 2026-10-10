@@ -46,3 +46,8 @@ def plugin_dir():
     if env:
         return Path(env)
     return Path(__file__).resolve().parents[2]
+
+
+def script_dir():
+    """Root-owned scripts shipped in the immutable Armada image."""
+    return Path("/usr/libexec/armada-store/scripts")

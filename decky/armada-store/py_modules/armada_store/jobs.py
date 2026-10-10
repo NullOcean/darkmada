@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 from . import catalog, installers, paths, postinstall, store
 
-ACTIVE_PHASES = {"queued", "resolving", "downloading", "installing", "extracting", "removing"}
+ACTIVE_PHASES = {"queued", "resolving", "downloading", "installing", "extracting", "removing", "running", "authenticating"}
 DONE_TTL = 10.0
 ERROR_TTL = 300.0
 
@@ -21,6 +21,9 @@ class Job:
         self.phase = "queued"
         self.percent = None
         self.error = ""
+        self.auth_url = ""
+        self.auth_qr = ""
+        self.message = ""
         self.finished_at = None
         self.cancel = threading.Event()
 
@@ -31,11 +34,14 @@ class Job:
             "phase": self.phase,
             "percent": self.percent,
             "error": self.error,
+            "authUrl": self.auth_url,
+            "authQr": self.auth_qr,
+            "message": self.message,
         }
 
 
 def start(app_id, action):
-    if action not in ("install", "uninstall", "replace"):
+    if action not in ("install", "uninstall", "replace", "run"):
         raise ValueError("Unknown action: " + str(action))
     app = catalog.find_app(app_id)
     if app is None:
@@ -141,7 +147,9 @@ def _execute(job):
     try:
         if app is None:
             raise RuntimeError("App is no longer in the catalog")
-        if job.action in ("install", "replace"):
+        if job.action == "run":
+            _execute_script(job, install, kind)
+        elif job.action in ("install", "replace"):
             _execute_install(job, app, install, kind)
             # After the install, never before: a download that fails partway
             # would otherwise leave the user with neither packaging.
@@ -234,6 +242,36 @@ def _execute_install(job, app, install, kind):
             installers.restart_decky()
     else:
         raise RuntimeError("Unknown install type: " + str(kind))
+
+
+def _execute_script(job, install, kind):
+    if kind != "script":
+        raise RuntimeError("Run is only available for script entries")
+    name = install.get("run")
+    if not name:
+        raise RuntimeError("Script entry has no run path")
+
+    job.phase = "running"
+
+    def event(payload):
+        auth_url = payload.get("AuthURL")
+        auth_qr = payload.get("QR")
+        state = payload.get("BackendState")
+        error = payload.get("Error")
+        if auth_url:
+            job.auth_url = str(auth_url)
+            job.phase = "authenticating"
+            job.message = "Open the login page to authenticate Tailscale."
+        if auth_qr:
+            job.auth_qr = str(auth_qr)
+        if state:
+            job.message = str(state)
+            if state == "Running":
+                job.phase = "running"
+        if error:
+            raise RuntimeError(str(error))
+
+    installers.run_script(name, job.cancel, event)
 
 
 def _execute_uninstall(job, install, kind):

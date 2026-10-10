@@ -1,7 +1,9 @@
 import fcntl
 import json
 import os
+import pathlib
 import re
+import selectors
 import select
 import ssl
 import struct
@@ -146,6 +148,87 @@ def _clean_output(raw):
     text = ANSI_RE.sub("\n", raw.decode("utf-8", errors="replace"))
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     return lines[-1] if lines else ""
+
+
+def _script_path(name):
+    """Resolve a catalog script without allowing arbitrary command paths."""
+    raw = str(name or "")
+    if raw.startswith("./scripts/"):
+        raw = raw[len("./scripts/"):]
+    if ".." in pathlib.PurePosixPath(raw).parts:
+        raise RuntimeError("Script path may not contain '..'")
+    root = paths.script_dir().resolve()
+    untrusted = root / raw
+    if untrusted.is_symlink():
+        raise RuntimeError("Store script may not be a symlink: " + raw)
+    candidate = untrusted.resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        raise RuntimeError("Script path escapes the Armada Store script directory")
+    if not candidate.is_file():
+        raise RuntimeError("Store script not found: " + raw)
+    return candidate
+
+
+def run_script(name, cancel, on_event):
+    """Run a reviewed image script and stream JSON events to the job."""
+    script = _script_path(name)
+    proc = subprocess.Popen(
+        ["/bin/bash", str(script)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=clean_env({"LC_ALL": "C.UTF-8"}),
+        close_fds=True,
+    )
+    selector = selectors.DefaultSelector()
+    assert proc.stdout is not None and proc.stderr is not None
+    selector.register(proc.stdout, selectors.EVENT_READ, False)
+    selector.register(proc.stderr, selectors.EVENT_READ, True)
+    stdout_buffer = ""
+    stderr_tail = []
+    decoder = json.JSONDecoder()
+    try:
+        while selector.get_map() or proc.poll() is None:
+            if cancel.is_set():
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                raise Cancelled()
+            for key, _ in selector.select(timeout=0.25):
+                read = getattr(key.fileobj, "read1", key.fileobj.read)
+                chunk = read(65536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                if key.data:
+                    stderr_tail.extend(chunk.decode("utf-8", errors="replace").splitlines())
+                    stderr_tail = stderr_tail[-20:]
+                    continue
+                stdout_buffer += chunk.decode("utf-8", errors="replace")
+                while stdout_buffer.strip():
+                    leading = stdout_buffer.lstrip()
+                    try:
+                        event, used = decoder.raw_decode(leading)
+                    except json.JSONDecodeError:
+                        # Tailscale emits complete JSON objects, but retain a
+                        # partial object until the next read arrives.
+                        break
+                    stdout_buffer = leading[used:]
+                    if isinstance(event, dict):
+                        on_event(event)
+        code = proc.wait()
+    finally:
+        selector.close()
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+    if code != 0:
+        message = next((line.strip() for line in reversed(stderr_tail) if line.strip()), "")
+        raise RuntimeError(message or "Store script failed ({})".format(code))
 
 
 def _run_flatpak(args, cancel, on_percent):

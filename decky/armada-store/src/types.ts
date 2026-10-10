@@ -14,7 +14,7 @@ export interface CatalogApp {
   category: string;
   icon: string;
   note: string;
-  installType: "flatpak" | "appimage" | "deckyplugin" | "system" | "";
+  installType: "flatpak" | "appimage" | "deckyplugin" | "system" | "script" | "";
   desktopOnly: boolean;
   hasConfig: boolean;
   launch: LaunchSpec | null;
@@ -27,10 +27,13 @@ export interface Catalog {
 
 export interface Job {
   appId: string;
-  action: "install" | "uninstall" | "replace";
+  action: "install" | "uninstall" | "replace" | "run";
   phase: string;
   percent: number | null;
   error: string;
+  authUrl?: string;
+  authQr?: string;
+  message?: string;
 }
 
 export interface Conflict {
